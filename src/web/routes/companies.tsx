@@ -46,21 +46,21 @@ function CompanyListCard({ companies }: { companies: CompanyWithStats[] }) {
   );
 }
 
-app.get("/companies", (c) => {
+app.get("/companies", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
   const query = c.req.query("q");
   const industry = c.req.query("industry");
-  const companies = listCompanies({ query: query ?? undefined, industry: industry ?? undefined });
+  const companies = await listCompanies({ query: query ?? undefined, industry: industry ?? undefined });
   const content = <CompanyListCard companies={companies} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });
 
-app.get("/companies/:id", (c) => {
+app.get("/companies/:id", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
   const id = c.req.param("id");
-  const company = getCompany(id);
+  const company = await getCompany(id);
 
   if (!company) {
     const msg = <div class="card"><div class="text-sm text-muted">Company not found.</div></div>;
@@ -68,8 +68,8 @@ app.get("/companies/:id", (c) => {
     return c.html(<Layout>{msg}</Layout>);
   }
 
-  const contacts = listContacts({ companyId: id });
-  const activities = listActivities({ companyId: id, limit: 20 });
+  const contacts = await listContacts({ companyId: id });
+  const activities = await listActivities({ companyId: id, limit: 20 });
   const content = <CompanyProfileCard company={company} contacts={contacts} activities={activities} />;
 
   if (isHtmx) return c.html(content);

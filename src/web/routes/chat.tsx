@@ -79,6 +79,7 @@ function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">company [name]</span> — show company profile</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">contacts</span> — list all contacts</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">contact [name/email]</span> — show contact profile</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">sync</span> — show sync status</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">help</span> — show this list</div>
       </div>
     </div>
@@ -91,25 +92,25 @@ app.post("/chat", async (c) => {
 
   // Dashboard
   if (message === "dashboard" || message === "stats" || message === "home") {
-    const stats = getDashboardStats();
+    const stats = await getDashboardStats();
     return c.html(<DashboardStatsCard stats={stats} />);
   }
 
   // Companies list
   if (message === "companies" || message === "list companies") {
-    const companies = listCompanies();
+    const companies = await listCompanies();
     return c.html(<CompanyListFragment companies={companies} />);
   }
 
   // Specific company by name
   if (message.startsWith("company ")) {
     const query = message.slice(8).trim();
-    const companies = listCompanies({ query });
+    const companies = await listCompanies({ query });
     if (companies.length === 1) {
-      const company = getCompany(companies[0]!.id);
+      const company = await getCompany(companies[0]!.id);
       if (company) {
-        const contacts = listContacts({ companyId: company.id });
-        const activities = listActivities({ companyId: company.id, limit: 20 });
+        const contacts = await listContacts({ companyId: company.id });
+        const activities = await listActivities({ companyId: company.id, limit: 20 });
         return c.html(<CompanyProfileCard company={company} contacts={contacts} activities={activities} />);
       }
     }
@@ -121,7 +122,7 @@ app.post("/chat", async (c) => {
 
   // Contacts list
   if (message === "contacts" || message === "list contacts") {
-    const contacts = listContacts();
+    const contacts = await listContacts();
     return c.html(<ContactListFragment contacts={contacts} />);
   }
 
@@ -131,19 +132,19 @@ app.post("/chat", async (c) => {
 
     // Try email match first
     if (query.includes("@")) {
-      const contact = getContactByEmail(query);
+      const contact = await getContactByEmail(query);
       if (contact) {
-        const activities = listActivities({ contactId: contact.id, limit: 20 });
+        const activities = await listActivities({ contactId: contact.id, limit: 20 });
         return c.html(<ContactProfileCard contact={contact} activities={activities} />);
       }
     }
 
     // Search by name
-    const contacts = listContacts({ query });
+    const contacts = await listContacts({ query });
     if (contacts.length === 1) {
-      const contact = getContact(contacts[0]!.id);
+      const contact = await getContact(contacts[0]!.id);
       if (contact) {
-        const activities = listActivities({ contactId: contact.id, limit: 20 });
+        const activities = await listActivities({ contactId: contact.id, limit: 20 });
         return c.html(<ContactProfileCard contact={contact} activities={activities} />);
       }
     }
@@ -151,6 +152,15 @@ app.post("/chat", async (c) => {
       return c.html(<ContactListFragment contacts={contacts} />);
     }
     return c.html(<div class="card"><div class="text-sm text-muted">No contact found matching "{query}".</div></div>);
+  }
+
+  // Sync status (redirect to sync page)
+  if (message === "sync" || message === "sync status") {
+    return c.html(
+      <div hx-get="/sync/status" hx-trigger="load" hx-target="#canvas" hx-swap="innerHTML">
+        <div class="text-sm text-muted">Loading sync status...</div>
+      </div>
+    );
   }
 
   // Help

@@ -40,21 +40,21 @@ function ContactListCard({ contacts }: { contacts: ContactWithDetails[] }) {
   );
 }
 
-app.get("/contacts", (c) => {
+app.get("/contacts", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
   const query = c.req.query("q");
   const companyId = c.req.query("company");
-  const contacts = listContacts({ query: query ?? undefined, companyId: companyId ?? undefined });
+  const contacts = await listContacts({ query: query ?? undefined, companyId: companyId ?? undefined });
   const content = <ContactListCard contacts={contacts} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });
 
-app.get("/contacts/:id", (c) => {
+app.get("/contacts/:id", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
   const id = c.req.param("id");
-  const contact = getContact(id);
+  const contact = await getContact(id);
 
   if (!contact) {
     const msg = <div class="card"><div class="text-sm text-muted">Contact not found.</div></div>;
@@ -62,7 +62,7 @@ app.get("/contacts/:id", (c) => {
     return c.html(<Layout>{msg}</Layout>);
   }
 
-  const activities = listActivities({ contactId: id, limit: 20 });
+  const activities = await listActivities({ contactId: id, limit: 20 });
   const content = <ContactProfileCard contact={contact} activities={activities} />;
 
   if (isHtmx) return c.html(content);

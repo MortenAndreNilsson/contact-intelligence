@@ -5,24 +5,24 @@ function parseContact(row: ContactRow): Contact {
   return { ...row, tags: JSON.parse(row.tags || "[]") };
 }
 
-export function createContact(
+export async function createContact(
   email: string,
   name?: string,
   companyId?: string,
   jobTitle?: string,
   source: string = "manual"
-): Contact {
+): Promise<Contact> {
   const id = generateId();
-  run(
+  await run(
     `INSERT INTO contacts (id, email, name, company_id, job_title, source)
      VALUES ($id, $email, $name, $companyId, $jobTitle, $source)`,
     { $id: id, $email: email, $name: name ?? null, $companyId: companyId ?? null, $jobTitle: jobTitle ?? null, $source: source }
   );
-  return getContact(id)! as Contact;
+  return (await getContact(id))! as Contact;
 }
 
-export function getContact(id: string): ContactWithDetails | null {
-  const row = queryOne<ContactRow & { company_name: string | null; activity_count: number }>(
+export async function getContact(id: string): Promise<ContactWithDetails | null> {
+  const row = await queryOne<ContactRow & { company_name: string | null; activity_count: number }>(
     `SELECT ct.*,
        comp.name AS company_name,
        (SELECT COUNT(*) FROM activities WHERE contact_id = ct.id) AS activity_count
@@ -35,7 +35,7 @@ export function getContact(id: string): ContactWithDetails | null {
   return { ...parseContact(row), company_name: row.company_name, activity_count: row.activity_count };
 }
 
-export function listContacts(opts?: { companyId?: string; query?: string; limit?: number }): ContactWithDetails[] {
+export async function listContacts(opts?: { companyId?: string; query?: string; limit?: number }): Promise<ContactWithDetails[]> {
   let sql = `SELECT ct.*,
     comp.name AS company_name,
     (SELECT COUNT(*) FROM activities WHERE contact_id = ct.id) AS activity_count
@@ -61,7 +61,7 @@ export function listContacts(opts?: { companyId?: string; query?: string; limit?
     params.$limit = opts.limit;
   }
 
-  const rows = queryAll<ContactRow & { company_name: string | null; activity_count: number }>(sql, Object.keys(params).length > 0 ? params : undefined);
+  const rows = await queryAll<ContactRow & { company_name: string | null; activity_count: number }>(sql, Object.keys(params).length > 0 ? params : undefined);
   return rows.map((r) => ({
     ...parseContact(r),
     company_name: r.company_name,
@@ -69,7 +69,7 @@ export function listContacts(opts?: { companyId?: string; query?: string; limit?
   }));
 }
 
-export function updateContact(id: string, fields: Partial<Pick<Contact, "name" | "email" | "company_id" | "job_title" | "consent_status" | "consent_date" | "notes" | "tags">>): void {
+export async function updateContact(id: string, fields: Partial<Pick<Contact, "name" | "email" | "company_id" | "job_title" | "consent_status" | "consent_date" | "notes" | "tags">>): Promise<void> {
   const sets: string[] = [];
   const params: Record<string, unknown> = { $id: id };
 
@@ -83,18 +83,18 @@ export function updateContact(id: string, fields: Partial<Pick<Contact, "name" |
   if (fields.tags !== undefined) { sets.push("tags = $tags"); params.$tags = JSON.stringify(fields.tags); }
 
   if (sets.length === 0) return;
-  sets.push("updated_at = datetime('now')");
-  run(`UPDATE contacts SET ${sets.join(", ")} WHERE id = $id`, params);
+  sets.push("updated_at = CAST(current_timestamp AS VARCHAR)");
+  await run(`UPDATE contacts SET ${sets.join(", ")} WHERE id = $id`, params);
 }
 
-export function deleteContact(id: string): void {
+export async function deleteContact(id: string): Promise<void> {
   // GDPR: anonymize activities, then delete contact
-  run(`UPDATE activities SET contact_id = NULL WHERE contact_id = $id`, { $id: id });
-  run(`DELETE FROM contacts WHERE id = $id`, { $id: id });
+  await run(`UPDATE activities SET contact_id = NULL WHERE contact_id = $id`, { $id: id });
+  await run(`DELETE FROM contacts WHERE id = $id`, { $id: id });
 }
 
-export function getContactByEmail(email: string): ContactWithDetails | null {
-  const row = queryOne<{ id: string }>(`SELECT id FROM contacts WHERE email = $email`, { $email: email });
+export async function getContactByEmail(email: string): Promise<ContactWithDetails | null> {
+  const row = await queryOne<{ id: string }>(`SELECT id FROM contacts WHERE email = $email`, { $email: email });
   if (!row) return null;
   return getContact(row.id);
 }

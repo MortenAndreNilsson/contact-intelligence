@@ -5,9 +5,9 @@ import { getDashboardStats } from "../../services/dashboard.ts";
 
 const app = new Hono();
 
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
-  const stats = getDashboardStats();
+  const stats = await getDashboardStats();
   const content = <DashboardStatsCard stats={stats} />;
 
   if (isHtmx) return c.html(content);

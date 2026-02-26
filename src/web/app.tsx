@@ -5,6 +5,7 @@ import dashboard from "./routes/dashboard.tsx";
 import companies from "./routes/companies.tsx";
 import contacts from "./routes/contacts.tsx";
 import chat from "./routes/chat.tsx";
+import sync from "./routes/sync.tsx";
 
 const app = new Hono();
 
@@ -17,6 +18,7 @@ app.route("/", dashboard);
 app.route("/", companies);
 app.route("/", contacts);
 app.route("/", chat);
+app.route("/", sync);
 
 // 404
 app.notFound((c) => {

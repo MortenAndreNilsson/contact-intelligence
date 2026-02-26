@@ -1,72 +1,101 @@
 CREATE TABLE IF NOT EXISTS companies (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  domain TEXT UNIQUE,
-  industry TEXT,
-  size_bucket TEXT,
-  country TEXT,
-  notes TEXT,
-  tags TEXT DEFAULT '[]',
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  id VARCHAR PRIMARY KEY,
+  name VARCHAR NOT NULL,
+  domain VARCHAR UNIQUE,
+  industry VARCHAR,
+  size_bucket VARCHAR,
+  country VARCHAR,
+  notes VARCHAR,
+  tags VARCHAR DEFAULT '[]',
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR),
+  updated_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
 );
 
 CREATE TABLE IF NOT EXISTS contacts (
-  id TEXT PRIMARY KEY,
-  company_id TEXT REFERENCES companies(id) ON DELETE SET NULL,
-  email TEXT UNIQUE,
-  name TEXT,
-  job_title TEXT,
-  source TEXT NOT NULL,
-  consent_status TEXT DEFAULT 'unknown',
-  consent_date TEXT,
-  tags TEXT DEFAULT '[]',
-  notes TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  id VARCHAR PRIMARY KEY,
+  company_id VARCHAR REFERENCES companies(id),
+  email VARCHAR UNIQUE,
+  name VARCHAR,
+  job_title VARCHAR,
+  source VARCHAR NOT NULL,
+  consent_status VARCHAR DEFAULT 'unknown',
+  consent_date VARCHAR,
+  tags VARCHAR DEFAULT '[]',
+  notes VARCHAR,
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR),
+  updated_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
 );
 
 CREATE TABLE IF NOT EXISTS activities (
-  id TEXT PRIMARY KEY,
-  contact_id TEXT REFERENCES contacts(id) ON DELETE SET NULL,
-  company_id TEXT REFERENCES companies(id) ON DELETE SET NULL,
-  activity_type TEXT NOT NULL,
-  source TEXT NOT NULL,
-  source_ref TEXT,
-  title TEXT,
-  detail TEXT,
-  occurred_at TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now'))
+  id VARCHAR PRIMARY KEY,
+  contact_id VARCHAR REFERENCES contacts(id),
+  company_id VARCHAR REFERENCES companies(id),
+  activity_type VARCHAR NOT NULL,
+  source VARCHAR NOT NULL,
+  source_ref VARCHAR,
+  title VARCHAR,
+  detail VARCHAR,
+  occurred_at VARCHAR NOT NULL,
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
 );
 
 CREATE TABLE IF NOT EXISTS lists (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  list_type TEXT NOT NULL,
-  filter_criteria TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  id VARCHAR PRIMARY KEY,
+  name VARCHAR NOT NULL,
+  description VARCHAR,
+  list_type VARCHAR NOT NULL,
+  filter_criteria VARCHAR,
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR),
+  updated_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
 );
 
 CREATE TABLE IF NOT EXISTS list_members (
-  list_id TEXT REFERENCES lists(id) ON DELETE CASCADE,
-  contact_id TEXT REFERENCES contacts(id) ON DELETE CASCADE,
-  added_at TEXT DEFAULT (datetime('now')),
+  list_id VARCHAR REFERENCES lists(id),
+  contact_id VARCHAR REFERENCES contacts(id),
+  added_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR),
   PRIMARY KEY (list_id, contact_id)
 );
 
 CREATE TABLE IF NOT EXISTS sync_log (
-  id TEXT PRIMARY KEY,
-  source TEXT NOT NULL,
-  source_ref TEXT,
-  last_sync_at TEXT NOT NULL,
+  id VARCHAR PRIMARY KEY,
+  source VARCHAR NOT NULL,
+  source_ref VARCHAR,
+  last_sync_at VARCHAR NOT NULL,
   records_processed INTEGER DEFAULT 0,
   records_created INTEGER DEFAULT 0,
   records_skipped INTEGER DEFAULT 0,
-  status TEXT NOT NULL,
-  error_message TEXT,
-  created_at TEXT DEFAULT (datetime('now'))
+  status VARCHAR NOT NULL,
+  error_message VARCHAR,
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
+);
+
+CREATE TABLE IF NOT EXISTS cms_events (
+  _id VARCHAR PRIMARY KEY,
+  userEmail VARCHAR,
+  eventType VARCHAR,
+  timestamp VARCHAR,
+  date DATE,
+  path VARCHAR,
+  section VARCHAR,
+  slug VARCHAR,
+  contentTitle VARCHAR,
+  referrer VARCHAR,
+  duration BIGINT,
+  deviceType VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS survey_responses (
+  _id VARCHAR PRIMARY KEY,
+  slug VARCHAR,
+  email VARCHAR,
+  company VARCHAR,
+  role VARCHAR,
+  overallScore DOUBLE,
+  maturityLevel VARCHAR,
+  dimensionScores VARCHAR,
+  answers VARCHAR,
+  completedAt VARCHAR,
+  userAgent VARCHAR
 );
 
 CREATE INDEX IF NOT EXISTS idx_contacts_company ON contacts(company_id);
@@ -75,3 +104,7 @@ CREATE INDEX IF NOT EXISTS idx_activities_contact ON activities(contact_id);
 CREATE INDEX IF NOT EXISTS idx_activities_company ON activities(company_id);
 CREATE INDEX IF NOT EXISTS idx_activities_type ON activities(activity_type);
 CREATE INDEX IF NOT EXISTS idx_activities_source_ref ON activities(source_ref);
+CREATE INDEX IF NOT EXISTS idx_cms_events_email ON cms_events(userEmail);
+CREATE INDEX IF NOT EXISTS idx_cms_events_type ON cms_events(eventType);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_email ON survey_responses(email);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_slug ON survey_responses(slug)

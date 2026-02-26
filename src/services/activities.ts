@@ -1,7 +1,7 @@
 import { generateId, queryAll, queryOne, run } from "../db/client.ts";
 import type { Activity, ActivityWithNames } from "../types/index.ts";
 
-export function createActivity(
+export async function createActivity(
   contactId: string | null,
   companyId: string | null,
   type: string,
@@ -10,9 +10,9 @@ export function createActivity(
   title: string,
   detail: string | null,
   occurredAt: string
-): Activity {
+): Promise<Activity> {
   const id = generateId();
-  run(
+  await run(
     `INSERT INTO activities (id, contact_id, company_id, activity_type, source, source_ref, title, detail, occurred_at)
      VALUES ($id, $contactId, $companyId, $type, $source, $sourceRef, $title, $detail, $occurredAt)`,
     {
@@ -27,15 +27,15 @@ export function createActivity(
       $occurredAt: occurredAt,
     }
   );
-  return queryOne<Activity>(`SELECT * FROM activities WHERE id = $id`, { $id: id })!;
+  return (await queryOne<Activity>(`SELECT * FROM activities WHERE id = $id`, { $id: id }))!;
 }
 
-export function listActivities(opts?: {
+export async function listActivities(opts?: {
   contactId?: string;
   companyId?: string;
   type?: string;
   limit?: number;
-}): ActivityWithNames[] {
+}): Promise<ActivityWithNames[]> {
   let sql = `SELECT a.*,
     ct.name AS contact_name,
     ct.email AS contact_email,
@@ -70,7 +70,7 @@ export function listActivities(opts?: {
   return queryAll<ActivityWithNames>(sql, Object.keys(params).length > 0 ? params : undefined);
 }
 
-export function activityExists(sourceRef: string): boolean {
-  const row = queryOne<{ cnt: number }>(`SELECT COUNT(*) AS cnt FROM activities WHERE source_ref = $ref`, { $ref: sourceRef });
+export async function activityExists(sourceRef: string): Promise<boolean> {
+  const row = await queryOne<{ cnt: number }>(`SELECT COUNT(*) AS cnt FROM activities WHERE source_ref = $ref`, { $ref: sourceRef });
   return (row?.cnt ?? 0) > 0;
 }
