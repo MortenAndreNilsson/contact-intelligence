@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "start": "bun run src/index.ts",
-    "seed": "bun run src/db/seed.ts",
     "sync:events": "bun run scripts/sync-events.ts",
     "sync:surveys": "bun run scripts/sync-surveys.ts",
     "sync:materialize": "bun run scripts/materialize.ts",

@@ -144,6 +144,103 @@ export function Layout({ children, title }: { children: Child; title?: string })
           .chat-input-area {
             padding: var(--space-sm);
             border-top: 1px solid var(--color-border);
+            position: relative;
+          }
+
+          [x-cloak] { display: none !important; }
+
+          .slash-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: var(--space-sm);
+            right: var(--space-sm);
+            background: var(--color-surface-elevated);
+            border: 1px solid var(--color-border-strong);
+            border-radius: var(--radius-md);
+            padding: 0.35rem;
+            margin-bottom: 0.35rem;
+            max-height: 260px;
+            overflow-y: auto;
+            z-index: 50;
+          }
+
+          .slash-option {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: 0.5rem 0.65rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: background 0.1s;
+          }
+
+          .slash-option:hover,
+          .slash-option-active {
+            background: var(--color-surface-hover);
+          }
+
+          .slash-cmd {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--visma-turquoise);
+            white-space: nowrap;
+          }
+
+          .slash-desc {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+          }
+
+          /* Activity Tabs */
+          .activity-tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: var(--space-sm);
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 0;
+          }
+
+          .activity-tab {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 0.5rem 0.75rem;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color 0.15s, border-color 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+          }
+
+          .activity-tab:hover {
+            color: var(--color-text-secondary);
+          }
+
+          .activity-tab-active {
+            color: var(--visma-turquoise);
+            border-bottom-color: var(--visma-turquoise);
+          }
+
+          .tab-count {
+            font-size: 0.65rem;
+            background: var(--color-surface-hover);
+            padding: 0.1rem 0.4rem;
+            border-radius: 100px;
+            min-width: 1.2rem;
+            text-align: center;
+          }
+
+          .activity-tab-active .tab-count {
+            background: rgba(0,159,147,0.2);
           }
 
           .chat-form {
@@ -372,11 +469,66 @@ export function Layout({ children, title }: { children: Child; title?: string })
           <div class="chat-panel">
             <div class="chat-messages" id="chat-messages">
               <div class="chat-msg assistant">
-                Welcome. Ask me about companies, contacts, or type "dashboard" to see an overview.
+                Welcome. Type <span class="font-mono" style="color: var(--visma-turquoise)">/</span> to see available commands.
               </div>
             </div>
-            <div class="chat-input-area">
-              <form class="chat-form" hx-post="/chat" hx-target="#canvas" hx-swap="innerHTML" hx-on--after-request="
+            <div class="chat-input-area" x-data={`{
+              open: false,
+              idx: 0,
+              value: '',
+              commands: [
+                { cmd: '/dashboard', desc: 'Overview with stats' },
+                { cmd: '/companies', desc: 'List all companies' },
+                { cmd: '/company ', desc: 'Show company profile', hasArg: true },
+                { cmd: '/contacts', desc: 'List all contacts' },
+                { cmd: '/contact ', desc: 'Show contact profile', hasArg: true },
+                { cmd: '/sync', desc: 'Show sync status' },
+                { cmd: '/help', desc: 'Show available commands' }
+              ],
+              get filtered() {
+                if (!this.value.startsWith('/')) return [];
+                const q = this.value.toLowerCase();
+                return this.commands.filter(c => c.cmd.startsWith(q));
+              },
+              onInput(e) {
+                this.value = e.target.value;
+                this.open = this.value.startsWith('/') && this.filtered.length > 0;
+                this.idx = 0;
+              },
+              onKeydown(e) {
+                if (!this.open) return;
+                if (e.key === 'ArrowDown') { e.preventDefault(); this.idx = Math.min(this.idx + 1, this.filtered.length - 1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); this.idx = Math.max(this.idx - 1, 0); }
+                else if (e.key === 'Tab') {
+                  e.preventDefault();
+                  const picked = this.filtered[this.idx];
+                  if (!picked) return;
+                  this.value = picked.cmd;
+                  this.$refs.input.value = picked.cmd;
+                  if (picked.hasArg) { this.open = false; }
+                  else { this.open = false; this.$nextTick(() => this.$refs.form.requestSubmit()); }
+                }
+                else if (e.key === 'Escape') { this.open = false; }
+              },
+              pick(i) {
+                const picked = this.filtered[i];
+                if (!picked) return;
+                this.value = picked.cmd;
+                this.$refs.input.value = picked.cmd;
+                this.open = false;
+                if (!picked.hasArg) { this.$nextTick(() => this.$refs.form.requestSubmit()); }
+                else { this.$refs.input.focus(); }
+              }
+            }`}>
+              <div class="slash-dropdown" x-show="open" x-cloak>
+                <template x-for="(c, i) in filtered" x-bind:key="c.cmd">
+                  <div class="slash-option" x-bind:class="{ 'slash-option-active': i === idx }" x-on:click="pick(i)">
+                    <span class="slash-cmd" x-text="c.cmd"></span>
+                    <span class="slash-desc" x-text="c.desc"></span>
+                  </div>
+                </template>
+              </div>
+              <form class="chat-form" x-ref="form" hx-post="/chat" hx-target="#canvas" hx-swap="innerHTML" hx-on--after-request={`
                 const input = this.querySelector('input');
                 const msgs = document.getElementById('chat-messages');
                 const userMsg = document.createElement('div');
@@ -384,14 +536,20 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 userMsg.textContent = input.value;
                 msgs.appendChild(userMsg);
                 input.value = '';
+                const el = this.closest('[x-data]');
+                Alpine.$data(el).value = '';
+                Alpine.$data(el).open = false;
                 msgs.scrollTop = msgs.scrollHeight;
-              ">
+              `}>
                 <input
                   type="text"
                   name="message"
                   class="chat-input"
-                  placeholder="Ask something..."
+                  placeholder="Type / for commands..."
                   autocomplete="off"
+                  x-ref="input"
+                  x-on:input="onInput($event)"
+                  x-on:keydown="onKeydown($event)"
                 />
                 <button type="submit" class="chat-submit">Send</button>
               </form>

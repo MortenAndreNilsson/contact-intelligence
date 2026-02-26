@@ -1,6 +1,6 @@
 import type { CompanyWithStats, ContactWithDetails } from "../../types/index.ts";
 import type { ActivityWithNames } from "../../types/index.ts";
-import { ActivityTimeline } from "./activity-timeline.tsx";
+import { ActivityTabs } from "./activity-tabs.tsx";
 
 export function CompanyProfileCard({
   company,
@@ -79,10 +79,7 @@ export function CompanyProfileCard({
       )}
 
       {activities.length > 0 && (
-        <div class="card">
-          <div class="card-label mb-xs">Activity Timeline</div>
-          <ActivityTimeline activities={activities} />
-        </div>
+        <ActivityTabs activities={activities} />
       )}
     </div>
   );

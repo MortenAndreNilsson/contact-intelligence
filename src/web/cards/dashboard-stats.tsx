@@ -60,7 +60,7 @@ export function DashboardStatsCard({ stats }: { stats: DashboardStats }) {
       {stats.totalCompanies === 0 && (
         <div class="empty-state">
           <div class="empty-state-icon">◇</div>
-          <div>No data yet. Seed the database or add companies and contacts.</div>
+          <div>No data yet. Run <span class="font-mono" style="color: var(--visma-turquoise)">bun run sync:all</span> to populate.</div>
         </div>
       )}
     </div>

@@ -74,13 +74,13 @@ function HelpCard() {
     <div class="card">
       <div class="card-label mb-xs">Available Commands</div>
       <div class="text-sm text-secondary" style="line-height: 1.8">
-        <div><span class="font-mono" style="color: var(--visma-turquoise)">dashboard</span> — overview with stats</div>
-        <div><span class="font-mono" style="color: var(--visma-turquoise)">companies</span> — list all companies</div>
-        <div><span class="font-mono" style="color: var(--visma-turquoise)">company [name]</span> — show company profile</div>
-        <div><span class="font-mono" style="color: var(--visma-turquoise)">contacts</span> — list all contacts</div>
-        <div><span class="font-mono" style="color: var(--visma-turquoise)">contact [name/email]</span> — show contact profile</div>
-        <div><span class="font-mono" style="color: var(--visma-turquoise)">sync</span> — show sync status</div>
-        <div><span class="font-mono" style="color: var(--visma-turquoise)">help</span> — show this list</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/dashboard</span> — overview with stats</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/companies</span> — list all companies</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/company [name]</span> — show company profile</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/contacts</span> — list all contacts</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/contact [name/email]</span> — show contact profile</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/sync</span> — show sync status</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/help</span> — show this list</div>
       </div>
     </div>
   );
@@ -88,7 +88,8 @@ function HelpCard() {
 
 app.post("/chat", async (c) => {
   const body = await c.req.parseBody();
-  const message = (body.message as string || "").trim().toLowerCase();
+  const raw = (body.message as string || "").trim();
+  const message = (raw.startsWith("/") ? raw.slice(1) : raw).toLowerCase();
 
   // Dashboard
   if (message === "dashboard" || message === "stats" || message === "home") {
