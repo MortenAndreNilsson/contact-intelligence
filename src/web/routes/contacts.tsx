@@ -1,0 +1,72 @@
+import { Hono } from "hono";
+import { Layout } from "../pages/layout.tsx";
+import { ContactProfileCard } from "../cards/contact-profile.tsx";
+import { listContacts, getContact } from "../../services/contacts.ts";
+import { listActivities } from "../../services/activities.ts";
+import type { ContactWithDetails } from "../../types/index.ts";
+
+const app = new Hono();
+
+function ContactListCard({ contacts }: { contacts: ContactWithDetails[] }) {
+  if (contacts.length === 0) {
+    return (
+      <div class="empty-state">
+        <div class="empty-state-icon">◇</div>
+        <div>No contacts found.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div class="card">
+      <div class="card-label mb-xs">Contacts ({contacts.length})</div>
+      {contacts.map((ct) => (
+        <div
+          class="table-row card-clickable"
+          hx-get={`/contacts/${ct.id}`}
+          hx-target="#canvas"
+          hx-swap="innerHTML"
+        >
+          <div class="flex-1">
+            <div style="font-weight: 600">{ct.name || ct.email}</div>
+            <div class="text-xs text-muted">
+              {[ct.job_title, ct.company_name, ct.email].filter(Boolean).join(" · ")}
+            </div>
+          </div>
+          <div class="text-xs text-muted font-mono">{ct.activity_count} activities</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+app.get("/contacts", (c) => {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  const query = c.req.query("q");
+  const companyId = c.req.query("company");
+  const contacts = listContacts({ query: query ?? undefined, companyId: companyId ?? undefined });
+  const content = <ContactListCard contacts={contacts} />;
+
+  if (isHtmx) return c.html(content);
+  return c.html(<Layout>{content}</Layout>);
+});
+
+app.get("/contacts/:id", (c) => {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  const id = c.req.param("id");
+  const contact = getContact(id);
+
+  if (!contact) {
+    const msg = <div class="card"><div class="text-sm text-muted">Contact not found.</div></div>;
+    if (isHtmx) return c.html(msg);
+    return c.html(<Layout>{msg}</Layout>);
+  }
+
+  const activities = listActivities({ contactId: id, limit: 20 });
+  const content = <ContactProfileCard contact={contact} activities={activities} />;
+
+  if (isHtmx) return c.html(content);
+  return c.html(<Layout>{content}</Layout>);
+});
+
+export default app;
