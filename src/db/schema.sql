@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS companies (
   size_bucket VARCHAR,
   country VARCHAR,
   notes VARCHAR,
+  description VARCHAR,
   tags VARCHAR DEFAULT '[]',
   created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR),
   updated_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)

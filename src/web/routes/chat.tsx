@@ -3,10 +3,11 @@ import { DashboardStatsCard } from "../cards/dashboard-stats.tsx";
 import { CompanyProfileCard } from "../cards/company-profile.tsx";
 import { ContactProfileCard } from "../cards/contact-profile.tsx";
 import { getDashboardStats } from "../../services/dashboard.ts";
-import { listCompanies, getCompany } from "../../services/companies.ts";
+import { listCompanies, getCompany, updateCompany } from "../../services/companies.ts";
 import { listContacts, getContact, getContactByEmail } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
+import { researchCompany } from "../../services/company-research.ts";
 import type { CompanyWithStats, ContactWithDetails } from "../../types/index.ts";
 
 const app = new Hono();
@@ -31,6 +32,19 @@ function normalizeMessage(msg: string): string {
   // Sync intent
   if (/\b(sync|synchronize|refresh data|pull data|update data|fetch data)\b/.test(msg)) {
     return "sync";
+  }
+
+  // Research intent — "research X", "deep dive on X"
+  const researchPatterns = [
+    /^research\s+(.+)/,
+    /(?:deep dive|deep research|profile)\s+(?:on\s+)?(.+)/,
+  ];
+  for (const pat of researchPatterns) {
+    const m = msg.match(pat);
+    if (m?.[1]) {
+      const arg = m[1].replace(/[?.!]+$/, "").trim();
+      if (arg.length > 0) return `research ${arg}`;
+    }
   }
 
   // Help intent
@@ -141,6 +155,7 @@ function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/contact [name/email]</span> — show contact profile</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/sync</span> — show sync status</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/enrich</span> — enrich contacts via Discovery Engine</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/research [company]</span> — deep research a company via Gemini</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/help</span> — show this list</div>
         <div class="text-xs text-muted mt-sm">You can also type naturally: "show me the dashboard", "who is hanne grina?", "what do we have on idella?"</div>
       </div>
@@ -252,6 +267,44 @@ app.post("/chat", async (c) => {
       return c.html(
         <div class="card">
           <div class="card-label mb-xs" style="color: var(--visma-coral)">Enrichment Error</div>
+          <div class="text-sm" style="color: var(--visma-coral)">{err.message}</div>
+        </div>
+      );
+    }
+  }
+
+  // Research a company
+  if (message.startsWith("research ")) {
+    const query = message.slice(9).trim();
+    const companies = await listCompanies({ query });
+
+    if (companies.length === 0) {
+      return c.html(<div class="card"><div class="text-sm text-muted">No company found matching "{query}".</div></div>);
+    }
+
+    // Pick the best match (first result)
+    const target = companies.length === 1 ? companies[0]! : companies[0]!;
+    if (companies.length > 1) {
+      // Show disambiguation if ambiguous
+      return c.html(<CompanyListFragment companies={companies} />);
+    }
+
+    try {
+      const description = await researchCompany(target.name, target.domain);
+      if (description) {
+        await updateCompany(target.id, { description });
+      }
+
+      const company = await getCompany(target.id);
+      if (company) {
+        const contacts = await listContacts({ companyId: company.id });
+        const activities = await listActivities({ companyId: company.id, limit: 20 });
+        return c.html(<CompanyProfileCard company={company} contacts={contacts} activities={activities} />);
+      }
+    } catch (err: any) {
+      return c.html(
+        <div class="card">
+          <div class="card-label mb-xs" style="color: var(--visma-coral)">Research Error</div>
           <div class="text-sm" style="color: var(--visma-coral)">{err.message}</div>
         </div>
       );

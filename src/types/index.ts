@@ -6,6 +6,7 @@ export interface Company {
   size_bucket: string | null;
   country: string | null;
   notes: string | null;
+  description: string | null;
   tags: string[];
   created_at: string;
   updated_at: string;
@@ -90,6 +91,7 @@ export interface CompanyRow {
   size_bucket: string | null;
   country: string | null;
   notes: string | null;
+  description: string | null;
   tags: string;
   created_at: string;
   updated_at: string;

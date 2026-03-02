@@ -31,6 +31,14 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
     await connection.run(stmt);
   }
 
+  // Migrations — add columns that may not exist in older databases
+  const migrations = [
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS description VARCHAR",
+  ];
+  for (const m of migrations) {
+    await connection.run(m);
+  }
+
   initialized = true;
   return connection;
 }

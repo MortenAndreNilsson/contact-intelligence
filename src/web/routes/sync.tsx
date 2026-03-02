@@ -1,11 +1,16 @@
 import { Hono } from "hono";
 import { Layout } from "../pages/layout.tsx";
 import { SyncStatusCard } from "../cards/sync-status.tsx";
+import { CompanyProfileCard } from "../cards/company-profile.tsx";
 import { queryAll, queryOne, run, generateId } from "../../db/client.ts";
 import { syncEvents } from "../../services/sync-events.ts";
 import { syncSurveys } from "../../services/sync-surveys.ts";
 import { materialize } from "../../services/materialize.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
+import { getCompany, updateCompany } from "../../services/companies.ts";
+import { listContacts } from "../../services/contacts.ts";
+import { listActivities } from "../../services/activities.ts";
+import { researchCompany } from "../../services/company-research.ts";
 
 const app = new Hono();
 
@@ -116,6 +121,41 @@ app.post("/sync/enrich", async (c) => {
   }
 
   return c.html(await renderSyncStatus());
+});
+
+// POST /companies/:id/research — trigger Gemini deep research for a company
+app.post("/companies/:id/research", async (c) => {
+  const id = c.req.param("id");
+  const company = await getCompany(id);
+
+  if (!company) {
+    return c.html(<div class="card"><div class="text-sm" style="color: var(--visma-coral)">Company not found.</div></div>);
+  }
+
+  try {
+    const description = await researchCompany(company.name, company.domain);
+
+    if (description) {
+      await updateCompany(id, { description });
+    }
+
+    // Re-fetch and render the full profile
+    const updated = await getCompany(id);
+    if (!updated) {
+      return c.html(<div class="card"><div class="text-sm" style="color: var(--visma-coral)">Company not found after update.</div></div>);
+    }
+
+    const contacts = await listContacts({ companyId: id });
+    const activities = await listActivities({ companyId: id, limit: 20 });
+    return c.html(<CompanyProfileCard company={updated} contacts={contacts} activities={activities} />);
+  } catch (err: any) {
+    return c.html(
+      <div class="card">
+        <div class="card-label mb-xs" style="color: var(--visma-coral)">Research Error</div>
+        <div class="text-sm" style="color: var(--visma-coral)">{err.message}</div>
+      </div>
+    );
+  }
 });
 
 export default app;

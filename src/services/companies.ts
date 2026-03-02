@@ -71,7 +71,7 @@ export async function listCompanies(opts?: { query?: string; industry?: string; 
   }));
 }
 
-export async function updateCompany(id: string, fields: Partial<Pick<Company, "name" | "domain" | "industry" | "size_bucket" | "country" | "notes" | "tags">>): Promise<void> {
+export async function updateCompany(id: string, fields: Partial<Pick<Company, "name" | "domain" | "industry" | "size_bucket" | "country" | "notes" | "description" | "tags">>): Promise<void> {
   const sets: string[] = [];
   const params: Record<string, unknown> = { $id: id };
 
@@ -81,6 +81,7 @@ export async function updateCompany(id: string, fields: Partial<Pick<Company, "n
   if (fields.size_bucket !== undefined) { sets.push("size_bucket = $sizeBucket"); params.$sizeBucket = fields.size_bucket; }
   if (fields.country !== undefined) { sets.push("country = $country"); params.$country = fields.country; }
   if (fields.notes !== undefined) { sets.push("notes = $notes"); params.$notes = fields.notes; }
+  if (fields.description !== undefined) { sets.push("description = $description"); params.$description = fields.description; }
   if (fields.tags !== undefined) { sets.push("tags = $tags"); params.$tags = JSON.stringify(fields.tags); }
 
   if (sets.length === 0) return;

@@ -49,6 +49,26 @@ export function CompanyProfileCard({
           </div>
         )}
 
+        {company.description ? (
+          <div class="text-sm text-secondary" style="margin-top: var(--space-sm); line-height: 1.7; padding: var(--space-sm); background: var(--color-surface-elevated); border-radius: var(--radius-md); border-left: 3px solid var(--visma-turquoise)">
+            {company.description}
+          </div>
+        ) : (
+          <div style="margin-top: var(--space-sm)">
+            <button
+              class="chat-submit"
+              style="font-size: 0.8rem; padding: 0.5rem 1rem; background: var(--color-surface-elevated); border: 1px solid var(--color-border-strong); color: var(--color-text-secondary); cursor: pointer; border-radius: var(--radius-md); transition: all 0.15s"
+              hx-post={`/companies/${company.id}/research`}
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+              hx-indicator="closest button"
+            >
+              <span class="htmx-indicator" style="display:none">Researching...</span>
+              <span>Research with Gemini</span>
+            </button>
+          </div>
+        )}
+
         {company.notes && (
           <div class="text-sm text-secondary" style="margin-top: var(--space-xs); line-height: 1.6">
             {company.notes}
