@@ -56,6 +56,21 @@ export interface ActivityWithNames extends Activity {
   company_name: string | null;
 }
 
+export interface TopArticle {
+  title: string;
+  slug: string | null;
+  section: string | null;
+  reader_count: number;
+  last_read: string;
+}
+
+export interface ArticleReader {
+  contact_name: string | null;
+  contact_email: string;
+  company_name: string | null;
+  occurred_at: string;
+}
+
 export interface DashboardStats {
   totalCompanies: number;
   totalContacts: number;
@@ -63,6 +78,8 @@ export interface DashboardStats {
   avgScore: number | null;
   recentActivity: ActivityWithNames[];
   topCompanies: CompanyWithStats[];
+  topArticles: TopArticle[];
+  newContent: { title: string; section: string | null; slug: string | null; first_seen: string }[];
 }
 
 export interface CompanyRow {

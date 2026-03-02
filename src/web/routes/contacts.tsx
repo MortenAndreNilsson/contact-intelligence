@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { Layout } from "../pages/layout.tsx";
 import { ContactProfileCard } from "../cards/contact-profile.tsx";
-import { listContacts, getContact } from "../../services/contacts.ts";
+import { listContacts, getContact, getContactByEmail } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
 import type { ContactWithDetails } from "../../types/index.ts";
 
@@ -46,6 +46,24 @@ app.get("/contacts", async (c) => {
   const companyId = c.req.query("company");
   const contacts = await listContacts({ query: query ?? undefined, companyId: companyId ?? undefined });
   const content = <ContactListCard contacts={contacts} />;
+
+  if (isHtmx) return c.html(content);
+  return c.html(<Layout>{content}</Layout>);
+});
+
+app.get("/contacts/by-email/:email", async (c) => {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  const email = decodeURIComponent(c.req.param("email"));
+  const contact = await getContactByEmail(email);
+
+  if (!contact) {
+    const msg = <div class="card"><div class="text-sm text-muted">Contact not found for {email}.</div></div>;
+    if (isHtmx) return c.html(msg);
+    return c.html(<Layout>{msg}</Layout>);
+  }
+
+  const activities = await listActivities({ contactId: contact.id, limit: 20 });
+  const content = <ContactProfileCard contact={contact} activities={activities} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);

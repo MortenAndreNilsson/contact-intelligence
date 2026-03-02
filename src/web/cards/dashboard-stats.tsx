@@ -1,6 +1,25 @@
 import type { DashboardStats } from "../../types/index.ts";
 import { ActivityTimeline } from "./activity-timeline.tsx";
 
+function relativeDate(dateStr: string): string {
+  const then = new Date(dateStr).getTime();
+  if (isNaN(then)) return "—";
+  const diff = Date.now() - then;
+  const days = Math.floor(diff / 86400000);
+  if (days < 1) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks}w ago`;
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+function sectionBadge(section: string | null) {
+  if (!section) return null;
+  const cls = section === "learn" ? "badge-lime" : section === "blog" ? "badge-turquoise" : "badge-green";
+  return <span class={`badge ${cls}`}>{section}</span>;
+}
+
 export function DashboardStatsCard({ stats }: { stats: DashboardStats }) {
   return (
     <div>
@@ -22,6 +41,53 @@ export function DashboardStatsCard({ stats }: { stats: DashboardStats }) {
           <div class="stat-label">Avg Score</div>
         </div>
       </div>
+
+      {/* Top Read Articles */}
+      {stats.topArticles.length > 0 && (
+        <div class="card">
+          <div class="card-label mb-xs">Top Read Articles</div>
+          {stats.topArticles.map((a) => (
+            <div
+              class="table-row card-clickable"
+              hx-get={`/articles/${encodeURIComponent(a.slug || a.title)}/readers`}
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+            >
+              <div class="flex-1">
+                <div style="font-weight: 600; font-size: 0.9rem">{a.title}</div>
+                <div class="flex gap-xs items-center" style="margin-top: 2px">
+                  {sectionBadge(a.section)}
+                  <span class="text-xs text-muted">Last read {relativeDate(a.last_read)}</span>
+                </div>
+              </div>
+              <div style="text-align: right">
+                <div class="font-mono" style="font-size: 1.25rem; font-weight: 700; color: var(--visma-turquoise)">
+                  {a.reader_count}
+                </div>
+                <div class="text-xs text-muted">readers</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* New Content */}
+      {stats.newContent.length > 0 && (
+        <div class="card">
+          <div class="card-label mb-xs">Recently Published</div>
+          {stats.newContent.map((c) => (
+            <div class="table-row">
+              <div class="flex-1">
+                <div style="font-weight: 600; font-size: 0.9rem">{c.title}</div>
+                <div class="flex gap-xs items-center" style="margin-top: 2px">
+                  {sectionBadge(c.section)}
+                  <span class="text-xs text-muted">First seen {relativeDate(c.first_seen)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {stats.topCompanies.length > 0 && (
         <div class="card">

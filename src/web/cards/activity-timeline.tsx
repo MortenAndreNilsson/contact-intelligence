@@ -29,7 +29,8 @@ function typeLabel(type: string): string {
 
 function relativeTime(dateStr: string): string {
   const now = Date.now();
-  const then = new Date(dateStr + "Z").getTime();
+  const then = new Date(dateStr).getTime();
+  if (isNaN(then)) return "—";
   const diff = now - then;
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return "just now";
