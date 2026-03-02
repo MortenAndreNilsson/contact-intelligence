@@ -158,3 +158,27 @@ export async function exec(sql: string): Promise<void> {
   const conn = await getConnection();
   await conn.run(sql);
 }
+
+/** Close DuckDB connection and instance cleanly (flushes WAL). */
+async function closeDatabase(): Promise<void> {
+  if (connection) {
+    connection.close();
+    connection = null;
+  }
+  if (instance) {
+    await instance.close();
+    instance = null;
+  }
+  initialized = false;
+  console.log("DuckDB closed cleanly");
+}
+
+// Flush WAL on shutdown — prevents corruption from unclean exits
+process.on("SIGINT", async () => {
+  await closeDatabase();
+  process.exit(0);
+});
+process.on("SIGTERM", async () => {
+  await closeDatabase();
+  process.exit(0);
+});
