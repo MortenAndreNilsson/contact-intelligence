@@ -1,14 +1,15 @@
 /**
- * People Lookup via Google Discovery Engine.
+ * People Lookup via Google Discovery Engine (search endpoint).
  *
- * Resolves email addresses to structured person info (name, org, title, etc.)
- * using a people-search app in the test-disco-cm GCP project.
+ * Uses the structured :search endpoint (not :answer) to avoid
+ * LLM-synthesized text and get direct field access. Only extracts
+ * the fields we need — no phone numbers, IDs, or photos stored.
  */
 
 import type { PersonInfo } from "../types/index.ts";
 
 const DISCOVERY_ENGINE_ENDPOINT =
-  "https://eu-discoveryengine.googleapis.com/v1alpha/projects/881765721010/locations/eu/collections/default_collection/engines/peoplesearch_1772444284005/servingConfigs/default_search:answer";
+  "https://eu-discoveryengine.googleapis.com/v1alpha/projects/881765721010/locations/eu/collections/default_collection/engines/peoplesearch_1772444284005/servingConfigs/default_search:search";
 
 async function getAccessToken(): Promise<string> {
   const proc = Bun.spawn(["gcloud.cmd", "auth", "print-access-token"], {
@@ -24,89 +25,53 @@ async function getAccessToken(): Promise<string> {
 }
 
 /**
- * Parse the free-text answerText from Discovery Engine into structured fields.
- *
- * Real response format (verbose paragraph):
- *   "Morten Andre Nilsson is an Operations Specialist in the Emerging Technology
- *    department at Visma Software International AS. His work address is in Oslo,
- *    Norway, specifically at Karenslyst Allé 56. ..."
- *
- *   "Kennet Dahl Kusk ... works for Visma Software International AS. Their job
- *    title is Saas Optimization Executive in the Emerging Technology department.
- *    ... work address is in Copenhagen, Denmark."
+ * Extract PersonInfo from a structured Discovery Engine search result.
+ * Only reads the fields we need — ignores phones, IDs, photos.
  */
-function parseAnswerText(text: string): PersonInfo {
-  const info: PersonInfo = {
-    name: null,
-    organization: null,
-    jobTitle: null,
-    department: null,
-    location: null,
-    country: null,
+function extractFromResult(data: any): PersonInfo {
+  const org = data.organizations?.[0];
+  const addr = data.addresses?.[0];
+
+  return {
+    name: data.name?.displayName ?? null,
+    organization: org?.name ?? null,
+    jobTitle: org?.jobTitle ?? null,
+    department: org?.department ?? null,
+    location: addr?.locality ?? org?.location ?? null,
+    country: addr?.country ?? null,
   };
-
-  if (!text) return info;
-
-  // Name: first sentence typically starts with the full name
-  // "Morten Andre Nilsson is an ..." or "Kennet Dahl Kusk has the email..."
-  const nameMatch = text.match(/^([A-Z][a-zA-Zéèëäöüß\s\-.]+?)(?:\s+is\s+|\s+has\s+|\s+works?\s+)/);
-  if (nameMatch?.[1]) info.name = nameMatch[1].trim();
-
-  // Organization: various patterns in order of specificity
-  const orgPatterns = [
-    /(?:works?\s+for|works?\s+at)\s+([A-Z][A-Za-z0-9\s&.,\-()]+?)(?:\.|,|\s+as\s+|\s+in\s+the\s+|\s+Their)/,
-    /employed\s+by\s+([A-Z][A-Za-z0-9\s&.,\-()]+?)(?:\.|,)/,
-    /department\s+at\s+([A-Z][A-Za-z0-9\s&.,\-()]+?)(?:\.|,)/,
-    /hiring\s+legal\s+unit\s+is\s+([A-Z][A-Za-z0-9\s&.,\-()]+?)(?:\.|,)/,
-    /\bis\s+(?:an?\s+)?[A-Z][A-Za-z\s&\-/]+?\s+at\s+([A-Z][A-Za-z0-9\s&.,\-()]+?)(?:\.|,)/,
-  ];
-  for (const pat of orgPatterns) {
-    const m = text.match(pat);
-    if (m?.[1]) { info.organization = m[1].trim(); break; }
-  }
-
-  // Job title: "is an <TITLE>" or "job title is <TITLE>" or "is a <TITLE>"
-  const titlePatterns = [
-    /job\s+title\s+is\s+([A-Za-z\s&\-/,]+?)(?:\s+(?:in|within)\s+the\s+|\.|,)/i,
-    /\bis\s+(?:an?\s+)?([A-Z][A-Za-z\s&\-/]+?)\s+(?:in|within)\s+the\s+/,
-    /\bis\s+(?:an?\s+)?([A-Z][A-Za-z\s&\-/]+?)\s+at\s+[A-Z]/,
-  ];
-  for (const pat of titlePatterns) {
-    const m = text.match(pat);
-    if (m?.[1]) { info.jobTitle = m[1].trim(); break; }
-  }
-
-  // Department: "in the <DEPT> department" or "within the <DEPT> department"
-  const deptMatch = text.match(/(?:in|within)\s+the\s+([A-Za-z\s&\-]+?)\s+department/i);
-  if (deptMatch?.[1]) info.department = deptMatch[1].trim();
-
-  // Location + Country: "work address is in <City>, <Country>" or "work location is <details>"
-  const addrPatterns = [
-    /work\s+address\s+is\s+in\s+([A-Za-z\s\-]+?),\s+([A-Za-z\s\-]+?)(?:\.|,|\s+specifically)/,
-    /work\s+location\s+is\s+[^,]*?,\s*([A-Za-z\s\-]+?),\s*([A-Z]{2})\./,
-    /based\s+in\s+([A-Za-z\s\-]+?)(?:,\s*([A-Za-z\s\-]+?))?[.,]/,
-  ];
-  for (const pat of addrPatterns) {
-    const m = text.match(pat);
-    if (m?.[1]) {
-      info.location = m[1].trim();
-      if (m[2]) info.country = m[2].trim();
-      break;
-    }
-  }
-
-  return info;
 }
 
 /**
- * Look up a person by email using Discovery Engine.
- * Returns structured PersonInfo or null if not found / API error.
+ * Find the correct person from search results by matching email.
+ * Returns the derivedStructData of the matching result, or null.
+ */
+function findByEmail(results: any[], email: string): any | null {
+  const lower = email.toLowerCase();
+
+  for (const result of results) {
+    const data = result.document?.derivedStructData;
+    if (!data?.emails) continue;
+
+    const match = data.emails.some(
+      (e: any) => e.value?.toLowerCase() === lower
+    );
+    if (match) return data;
+  }
+
+  return null;
+}
+
+/**
+ * Look up a person by email using Discovery Engine :search endpoint.
+ * Returns structured PersonInfo or null if not found.
  */
 export async function lookupPerson(email: string, token?: string): Promise<PersonInfo | null> {
   const accessToken = token ?? await getAccessToken();
 
   const body = {
-    query: { text: `who is ${email}` },
+    query: `who is ${email}`,
+    pageSize: 1,
   };
 
   const res = await fetch(DISCOVERY_ENGINE_ENDPOINT, {
@@ -124,13 +89,16 @@ export async function lookupPerson(email: string, token?: string): Promise<Perso
   }
 
   const data: any = await res.json();
-  const answerText: string | undefined = data?.answer?.answerText;
 
-  if (!answerText || answerText.includes("don't have") || answerText.includes("no information")) {
-    return null;
-  }
+  // Search results are in oneBoxResults[0].searchResults (people-type results)
+  const searchResults = data?.oneBoxResults?.[0]?.searchResults;
+  if (!searchResults || searchResults.length === 0) return null;
 
-  const info = parseAnswerText(answerText);
+  // Match by email to find the exact person
+  const matched = findByEmail(searchResults, email);
+  if (!matched) return null;
+
+  const info = extractFromResult(matched);
 
   // If we couldn't extract anything useful, treat as not found
   if (!info.name && !info.organization && !info.jobTitle) {
