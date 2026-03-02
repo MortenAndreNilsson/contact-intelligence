@@ -10,7 +10,8 @@
     "sync:events": "bun run scripts/sync-events.ts",
     "sync:surveys": "bun run scripts/sync-surveys.ts",
     "sync:materialize": "bun run scripts/materialize.ts",
-    "sync:all": "bun run scripts/sync-events.ts && bun run scripts/sync-surveys.ts && bun run scripts/materialize.ts"
+    "enrich": "bun run scripts/enrich-contacts.ts",
+    "sync:all": "bun run scripts/sync-events.ts && bun run scripts/sync-surveys.ts && bun run scripts/materialize.ts && bun run scripts/enrich-contacts.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.9",

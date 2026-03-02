@@ -5,6 +5,7 @@ import { queryAll, queryOne, run, generateId } from "../../db/client.ts";
 import { syncEvents } from "../../services/sync-events.ts";
 import { syncSurveys } from "../../services/sync-surveys.ts";
 import { materialize } from "../../services/materialize.ts";
+import { enrichContacts } from "../../services/enrich-contacts.ts";
 
 const app = new Hono();
 
@@ -95,6 +96,23 @@ app.post("/sync/materialize", async (c) => {
     console.log(`materialize: +${result.companies} companies, +${result.contacts} contacts, +${result.cmsActivities} CMS, +${result.surveyActivities} survey`);
   } catch (err: any) {
     console.error("materialize failed:", err.message);
+  }
+
+  return c.html(await renderSyncStatus());
+});
+
+// POST /sync/enrich — trigger people enrichment (in-process)
+app.post("/sync/enrich", async (c) => {
+  try {
+    const result = await enrichContacts();
+    console.log(`enrich: ${result.processed} processed, ${result.enriched} enriched, ${result.failed} failed, ${result.companiesCreated} companies created`);
+  } catch (err: any) {
+    console.error("enrich failed:", err.message);
+    await run(
+      `INSERT INTO sync_log (id, source, last_sync_at, records_processed, status, error_message)
+       VALUES ($id, 'people_enrichment', CAST(current_timestamp AS VARCHAR), 0, 'error', $err)`,
+      { $id: generateId(), $err: err.message }
+    );
   }
 
   return c.html(await renderSyncStatus());

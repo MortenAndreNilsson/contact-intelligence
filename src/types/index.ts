@@ -98,3 +98,19 @@ export interface CompanyRow {
 export interface ContactRow extends Omit<Contact, "tags"> {
   tags: string;
 }
+
+export interface PersonInfo {
+  name: string | null;
+  organization: string | null;
+  jobTitle: string | null;
+  department: string | null;
+  location: string | null;
+  country: string | null;
+}
+
+export interface EnrichResult {
+  processed: number;
+  enriched: number;
+  failed: number;
+  companiesCreated: number;
+}

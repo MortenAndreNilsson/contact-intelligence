@@ -41,6 +41,7 @@ export function SyncStatusCard({
   const eventLog = logs.find((l) => l.source === "cms_events");
   const surveyLog = logs.find((l) => l.source === "survey_responses");
   const materializeLog = logs.find((l) => l.source === "materialize");
+  const enrichLog = logs.find((l) => l.source === "people_enrichment");
 
   return (
     <div>
@@ -138,6 +139,30 @@ export function SyncStatusCard({
               disabled={running === "materialize"}
             >
               {running === "materialize" ? "Running..." : "Run"}
+            </button>
+          </div>
+        </div>
+
+        {/* People Enrichment */}
+        <div class="table-row">
+          <div class="flex-1">
+            <div style="font-weight: 600">People Enrichment (Discovery Engine)</div>
+            <div class="text-xs text-muted">
+              Last run: {formatDate(enrichLog?.last_sync_at ?? null)}
+              {enrichLog ? ` · ${enrichLog.records_created} enriched, ${enrichLog.records_skipped} failed` : ""}
+            </div>
+          </div>
+          <div class="flex gap-xs items-center">
+            {enrichLog && <StatusBadge status={enrichLog.status} />}
+            <button
+              class="chat-submit"
+              style="padding: 0.4rem 0.8rem; font-size: 0.75rem"
+              hx-post="/sync/enrich"
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+              disabled={running === "enrich"}
+            >
+              {running === "enrich" ? "Running..." : "Enrich"}
             </button>
           </div>
         </div>

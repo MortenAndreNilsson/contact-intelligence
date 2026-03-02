@@ -40,7 +40,20 @@ export function ContactProfileCard({
               </div>
             )}
           </div>
-          <div>{consentBadge(contact.consent_status)}</div>
+          <div class="flex gap-xs items-center">
+            {(!contact.name || !contact.job_title) && (
+              <button
+                class="chat-submit"
+                style="padding: 0.35rem 0.7rem; font-size: 0.7rem"
+                hx-post={`/contacts/${contact.id}/enrich`}
+                hx-target="#canvas"
+                hx-swap="innerHTML"
+              >
+                Lookup
+              </button>
+            )}
+            {consentBadge(contact.consent_status)}
+          </div>
         </div>
 
         <div class="flex gap-xs" style="margin-top: var(--space-xs)">

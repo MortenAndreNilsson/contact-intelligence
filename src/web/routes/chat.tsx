@@ -6,6 +6,7 @@ import { getDashboardStats } from "../../services/dashboard.ts";
 import { listCompanies, getCompany } from "../../services/companies.ts";
 import { listContacts, getContact, getContactByEmail } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
+import { enrichContacts } from "../../services/enrich-contacts.ts";
 import type { CompanyWithStats, ContactWithDetails } from "../../types/index.ts";
 
 const app = new Hono();
@@ -80,6 +81,7 @@ function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/contacts</span> — list all contacts</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/contact [name/email]</span> — show contact profile</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/sync</span> — show sync status</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/enrich</span> — enrich contacts via Discovery Engine</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/help</span> — show this list</div>
       </div>
     </div>
@@ -153,6 +155,44 @@ app.post("/chat", async (c) => {
       return c.html(<ContactListFragment contacts={contacts} />);
     }
     return c.html(<div class="card"><div class="text-sm text-muted">No contact found matching "{query}".</div></div>);
+  }
+
+  // Enrich contacts
+  if (message === "enrich" || message === "enrich contacts") {
+    try {
+      const result = await enrichContacts();
+      return c.html(
+        <div class="card">
+          <div class="card-label mb-xs">People Enrichment</div>
+          <div class="section-title">Enrichment Complete</div>
+          <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr)">
+            <div class="stat-box">
+              <div class="stat-value" style="font-size: 1.5rem">{result.processed}</div>
+              <div class="stat-label">Processed</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" style="font-size: 1.5rem; color: var(--visma-turquoise)">{result.enriched}</div>
+              <div class="stat-label">Enriched</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" style="font-size: 1.5rem; color: var(--visma-coral)">{result.failed}</div>
+              <div class="stat-label">Not Found</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" style="font-size: 1.5rem; color: var(--visma-lime)">{result.companiesCreated}</div>
+              <div class="stat-label">New Companies</div>
+            </div>
+          </div>
+        </div>
+      );
+    } catch (err: any) {
+      return c.html(
+        <div class="card">
+          <div class="card-label mb-xs" style="color: var(--visma-coral)">Enrichment Error</div>
+          <div class="text-sm" style="color: var(--visma-coral)">{err.message}</div>
+        </div>
+      );
+    }
   }
 
   // Sync status (redirect to sync page)

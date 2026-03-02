@@ -483,6 +483,7 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 { cmd: '/contacts', desc: 'List all contacts' },
                 { cmd: '/contact ', desc: 'Show contact profile', hasArg: true },
                 { cmd: '/sync', desc: 'Show sync status' },
+                { cmd: '/enrich', desc: 'Enrich contacts via Discovery Engine' },
                 { cmd: '/help', desc: 'Show available commands' }
               ],
               get filtered() {
