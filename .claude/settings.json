@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit(src/**)",
+      "Write(src/**)",
+      "Edit(scripts/**)",
+      "Write(scripts/**)",
+      "Edit(package.json)",
+      "Bash(bun run *)",
+      "Bash(bun --hot *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git status)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git push)",
+      "Bash(curl *)",
+      "Bash(taskkill *)",
+      "Bash(rm *)",
+      "Bash(mkdir *)",
+      "Bash(ls *)",
+      "Bash(sleep *)"
+    ]
+  }
+}

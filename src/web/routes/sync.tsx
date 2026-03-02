@@ -1,7 +1,10 @@
 import { Hono } from "hono";
 import { Layout } from "../pages/layout.tsx";
 import { SyncStatusCard } from "../cards/sync-status.tsx";
-import { queryAll, queryOne } from "../../db/client.ts";
+import { queryAll, queryOne, run, generateId } from "../../db/client.ts";
+import { syncEvents } from "../../services/sync-events.ts";
+import { syncSurveys } from "../../services/sync-surveys.ts";
+import { materialize } from "../../services/materialize.ts";
 
 const app = new Hono();
 
@@ -17,7 +20,6 @@ interface SyncLogEntry {
 }
 
 async function getSyncData() {
-  // Get most recent sync log per source
   const logs = await queryAll<SyncLogEntry>(
     `SELECT * FROM sync_log
      WHERE (source, last_sync_at) IN (
@@ -52,76 +54,47 @@ app.get("/sync/status", async (c) => {
   return c.html(<Layout>{content}</Layout>);
 });
 
-// POST /sync/events — trigger CMS events sync
+// POST /sync/events — trigger CMS events sync (in-process)
 app.post("/sync/events", async (c) => {
   try {
-    const proc = Bun.spawn(["bun", "run", "scripts/sync-events.ts"], {
-      cwd: import.meta.dir + "/../../..",
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
-    const exitCode = await proc.exited;
-
-    if (exitCode !== 0) {
-      console.error("sync-events failed:", stderr || stdout);
-    } else {
-      console.log("sync-events output:", stdout);
-    }
+    const result = await syncEvents();
+    console.log(`sync-events: ${result.processed} processed, ${result.created} created, ${result.skipped} skipped`);
   } catch (err: any) {
-    console.error("Failed to run sync-events:", err.message);
+    console.error("sync-events failed:", err.message);
+    await run(
+      `INSERT INTO sync_log (id, source, last_sync_at, records_processed, status, error_message)
+       VALUES ($id, 'cms_events', CAST(current_timestamp AS VARCHAR), 0, 'error', $err)`,
+      { $id: generateId(), $err: err.message }
+    );
   }
 
   return c.html(await renderSyncStatus());
 });
 
-// POST /sync/surveys — trigger survey sync
+// POST /sync/surveys — trigger survey sync (in-process)
 app.post("/sync/surveys", async (c) => {
   try {
-    const proc = Bun.spawn(["bun", "run", "scripts/sync-surveys.ts"], {
-      cwd: import.meta.dir + "/../../..",
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
-    const exitCode = await proc.exited;
-
-    if (exitCode !== 0) {
-      console.error("sync-surveys failed:", stderr || stdout);
-    } else {
-      console.log("sync-surveys output:", stdout);
-    }
+    const result = await syncSurveys();
+    console.log(`sync-surveys: ${result.processed} processed, ${result.created} created, ${result.skipped} skipped`);
   } catch (err: any) {
-    console.error("Failed to run sync-surveys:", err.message);
+    console.error("sync-surveys failed:", err.message);
+    await run(
+      `INSERT INTO sync_log (id, source, last_sync_at, records_processed, status, error_message)
+       VALUES ($id, 'survey_responses', CAST(current_timestamp AS VARCHAR), 0, 'error', $err)`,
+      { $id: generateId(), $err: err.message }
+    );
   }
 
   return c.html(await renderSyncStatus());
 });
 
-// POST /sync/materialize — trigger identity resolution
+// POST /sync/materialize — trigger identity resolution (in-process)
 app.post("/sync/materialize", async (c) => {
   try {
-    const proc = Bun.spawn(["bun", "run", "scripts/materialize.ts"], {
-      cwd: import.meta.dir + "/../../..",
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
-    const exitCode = await proc.exited;
-
-    if (exitCode !== 0) {
-      console.error("materialize failed:", stderr || stdout);
-    } else {
-      console.log("materialize output:", stdout);
-    }
+    const result = await materialize();
+    console.log(`materialize: +${result.companies} companies, +${result.contacts} contacts, +${result.cmsActivities} CMS, +${result.surveyActivities} survey`);
   } catch (err: any) {
-    console.error("Failed to run materialize:", err.message);
+    console.error("materialize failed:", err.message);
   }
 
   return c.html(await renderSyncStatus());
