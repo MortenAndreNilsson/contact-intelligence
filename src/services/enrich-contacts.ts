@@ -9,7 +9,6 @@
  */
 
 import { queryAll, queryOne, run, generateId } from "../db/client.ts";
-import { updateContact } from "./contacts.ts";
 import { createCompany } from "./companies.ts";
 import { lookupPerson } from "./people-lookup.ts";
 import type { EnrichResult, PersonInfo } from "../types/index.ts";
@@ -57,21 +56,55 @@ export async function enrichSingleContact(
     return { success: false, info: null, companyCreated: false };
   }
 
-  // Build update fields
-  const updates: Record<string, unknown> = {};
-  if (info.name) updates.name = info.name;
-  if (info.jobTitle) updates.job_title = info.jobTitle;
+  // Build SET clauses for direct SQL update
+  const sets: string[] = [];
+  const params: Record<string, unknown> = { $id: contactId };
+
+  if (info.name) { sets.push("name = $name"); params.$name = info.name; }
+  if (info.jobTitle) { sets.push("job_title = $jobTitle"); params.$jobTitle = info.jobTitle; }
 
   // Resolve company if org found
   let companyCreated = false;
   if (info.organization) {
     const company = await resolveCompany(info.organization);
-    updates.company_id = company.id;
+    sets.push("company_id = $companyId");
+    params.$companyId = company.id;
     companyCreated = company.created;
   }
 
-  if (Object.keys(updates).length > 0) {
-    await updateContact(contactId, updates as any);
+  if (sets.length > 0) {
+    sets.push("updated_at = CAST(current_timestamp AS VARCHAR)");
+
+    // DuckDB FK workaround: can't UPDATE a parent row referenced by children.
+    // Detach activities temporarily, update contact, then reattach.
+    const activityIds = await queryAll<{ id: string }>(
+      `SELECT id FROM activities WHERE contact_id = $id`,
+      { $id: contactId }
+    );
+    const listMemberIds = await queryAll<{ list_id: string }>(
+      `SELECT list_id FROM list_members WHERE contact_id = $id`,
+      { $id: contactId }
+    );
+
+    if (activityIds.length > 0) {
+      await run(`UPDATE activities SET contact_id = NULL WHERE contact_id = $id`, { $id: contactId });
+    }
+    if (listMemberIds.length > 0) {
+      await run(`DELETE FROM list_members WHERE contact_id = $id`, { $id: contactId });
+    }
+
+    await run(`UPDATE contacts SET ${sets.join(", ")} WHERE id = $id`, params);
+
+    // Reattach
+    for (const a of activityIds) {
+      await run(`UPDATE activities SET contact_id = $cid WHERE id = $aid`, { $cid: contactId, $aid: a.id });
+    }
+    for (const lm of listMemberIds) {
+      await run(
+        `INSERT INTO list_members (list_id, contact_id) VALUES ($lid, $cid)`,
+        { $lid: lm.list_id, $cid: contactId }
+      );
+    }
   }
 
   return { success: true, info, companyCreated };
