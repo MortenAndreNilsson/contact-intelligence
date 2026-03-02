@@ -499,6 +499,16 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 if (!this.open) return;
                 if (e.key === 'ArrowDown') { e.preventDefault(); this.idx = Math.min(this.idx + 1, this.filtered.length - 1); }
                 else if (e.key === 'ArrowUp') { e.preventDefault(); this.idx = Math.max(this.idx - 1, 0); }
+                else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const picked = this.filtered[this.idx];
+                  if (!picked) return;
+                  this.value = picked.cmd;
+                  this.$refs.input.value = picked.cmd;
+                  this.open = false;
+                  if (!picked.hasArg) { this.$nextTick(() => this.$refs.form.requestSubmit()); }
+                  else { this.$refs.input.focus(); }
+                }
                 else if (e.key === 'Tab') {
                   e.preventDefault();
                   const picked = this.filtered[this.idx];
