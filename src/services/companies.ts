@@ -46,8 +46,13 @@ export async function listCompanies(opts?: { query?: string; industry?: string; 
   const params: Record<string, unknown> = {};
 
   if (opts?.query) {
-    sql += ` AND (c.name LIKE $query OR c.domain LIKE $query)`;
-    params.$query = `%${opts.query}%`;
+    // Split query into words — each word must match name or domain (case-insensitive)
+    const words = opts.query.trim().split(/\s+/).filter(Boolean);
+    for (let i = 0; i < words.length; i++) {
+      const key = `$qw${i}`;
+      sql += ` AND (c.name ILIKE ${key} OR c.domain ILIKE ${key})`;
+      params[key] = `%${words[i]}%`;
+    }
   }
   if (opts?.industry) {
     sql += ` AND c.industry = $industry`;

@@ -50,8 +50,13 @@ export async function listContacts(opts?: { companyId?: string; query?: string; 
     params.$companyId = opts.companyId;
   }
   if (opts?.query) {
-    sql += ` AND (ct.name LIKE $query OR ct.email LIKE $query OR ct.job_title LIKE $query)`;
-    params.$query = `%${opts.query}%`;
+    // Split query into words — each word must match name, email, or job_title (case-insensitive)
+    const words = opts.query.trim().split(/\s+/).filter(Boolean);
+    for (let i = 0; i < words.length; i++) {
+      const key = `$qw${i}`;
+      sql += ` AND (ct.name ILIKE ${key} OR ct.email ILIKE ${key} OR ct.job_title ILIKE ${key})`;
+      params[key] = `%${words[i]}%`;
+    }
   }
 
   sql += ` ORDER BY ct.updated_at DESC`;
