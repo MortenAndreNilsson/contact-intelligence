@@ -8,8 +8,14 @@ import type {
   CompanyEngagement,
 } from "../types/index.ts";
 
+/** Build a WHERE clause fragment for date filtering. Returns empty string for "all". */
+function dateFilter(alias: string, days: number | null): string {
+  if (days === null) return "";
+  return ` AND ${alias}.occurred_at >= CAST(current_timestamp - INTERVAL '${days} days' AS VARCHAR)`;
+}
+
 /** Top articles ranked by unique readers, with 7-day movement */
-export async function getTopArticles(limit = 25): Promise<TopArticleWithMovement[]> {
+export async function getTopArticles(limit = 25, days: number | null = null): Promise<TopArticleWithMovement[]> {
   return queryAll<TopArticleWithMovement>(
     `SELECT
        a.title,
@@ -17,7 +23,7 @@ export async function getTopArticles(limit = 25): Promise<TopArticleWithMovement
        json_extract_string(a.detail, '$.section') AS section,
        COUNT(DISTINCT ct.email) AS reader_count,
        COUNT(DISTINCT CASE
-         WHEN a.occurred_at >= current_timestamp - INTERVAL '7 days' THEN ct.email
+         WHEN a.occurred_at >= CAST(current_timestamp - INTERVAL '7 days' AS VARCHAR) THEN ct.email
        END) AS new_readers_7d,
        MAX(a.occurred_at) AS last_read
      FROM activities a
@@ -27,6 +33,7 @@ export async function getTopArticles(limit = 25): Promise<TopArticleWithMovement
        AND json_extract_string(a.detail, '$.slug') IS NOT NULL
        AND json_extract_string(a.detail, '$.slug') != ''
        AND a.title NOT LIKE '/%'
+       ${dateFilter("a", days)}
      GROUP BY a.title, slug, section
      ORDER BY reader_count DESC, last_read DESC
      LIMIT $limit`,
@@ -35,7 +42,7 @@ export async function getTopArticles(limit = 25): Promise<TopArticleWithMovement
 }
 
 /** Top pages ranked by total views, with unique visitors and 7-day movement */
-export async function getTopPages(limit = 25): Promise<TopPageWithMovement[]> {
+export async function getTopPages(limit = 25, days: number | null = null): Promise<TopPageWithMovement[]> {
   return queryAll<TopPageWithMovement>(
     `SELECT
        a.title,
@@ -44,7 +51,7 @@ export async function getTopPages(limit = 25): Promise<TopPageWithMovement[]> {
        COUNT(*) AS view_count,
        COUNT(DISTINCT ct.email) AS unique_visitors,
        COUNT(CASE
-         WHEN a.occurred_at >= current_timestamp - INTERVAL '7 days' THEN 1
+         WHEN a.occurred_at >= CAST(current_timestamp - INTERVAL '7 days' AS VARCHAR) THEN 1
        END) AS new_views_7d,
        MAX(a.occurred_at) AS last_viewed
      FROM activities a
@@ -52,6 +59,7 @@ export async function getTopPages(limit = 25): Promise<TopPageWithMovement[]> {
      WHERE a.activity_type = 'page_view'
        AND a.title IS NOT NULL
        AND a.title NOT LIKE '/%'
+       ${dateFilter("a", days)}
      GROUP BY a.title, path, section
      ORDER BY view_count DESC, last_viewed DESC
      LIMIT $limit`,
@@ -68,7 +76,7 @@ function maturityLevel(score: number): string {
 }
 
 /** Survey analytics: company rankings + recent completions + totals */
-export async function getSurveyAnalytics(): Promise<SurveyOverview> {
+export async function getSurveyAnalytics(days: number | null = null): Promise<SurveyOverview> {
   const companyRows = await queryAll<{
     company_name: string;
     company_id: string;
@@ -85,6 +93,7 @@ export async function getSurveyAnalytics(): Promise<SurveyOverview> {
      FROM activities a
      JOIN companies comp ON a.company_id = comp.id
      WHERE a.activity_type = 'survey_completed'
+       ${dateFilter("a", days)}
      GROUP BY comp.id, comp.name
      ORDER BY avg_score DESC`
   );
@@ -111,6 +120,7 @@ export async function getSurveyAnalytics(): Promise<SurveyOverview> {
      LEFT JOIN contacts ct ON a.contact_id = ct.id
      LEFT JOIN companies comp ON a.company_id = comp.id
      WHERE a.activity_type = 'survey_completed'
+       ${dateFilter("a", days)}
      ORDER BY a.occurred_at DESC
      LIMIT 10`
   );
@@ -130,7 +140,8 @@ export async function getSurveyAnalytics(): Promise<SurveyOverview> {
        AVG(CAST(json_extract_string(a.detail, '$.avgScore') AS DOUBLE)) AS avg_overall_score,
        COUNT(DISTINCT a.company_id) AS companies_surveyed
      FROM activities a
-     WHERE a.activity_type = 'survey_completed'`
+     WHERE a.activity_type = 'survey_completed'
+       ${dateFilter("a", days)}`
   );
 
   return {
@@ -143,8 +154,7 @@ export async function getSurveyAnalytics(): Promise<SurveyOverview> {
 }
 
 /** Composite engagement scores per company with trend indicators */
-export async function getEngagementScores(limit = 20): Promise<CompanyEngagement[]> {
-  // Raw counts per company
+export async function getEngagementScores(limit = 20, days: number | null = null): Promise<CompanyEngagement[]> {
   const rows = await queryAll<{
     company_id: string;
     company_name: string;
@@ -160,11 +170,13 @@ export async function getEngagementScores(limit = 20): Promise<CompanyEngagement
        COUNT(CASE WHEN a.activity_type = 'article_view' THEN 1 END) AS article_reads,
        COUNT(CASE WHEN a.activity_type = 'page_view' THEN 1 END) AS page_views,
        COUNT(CASE WHEN a.activity_type = 'survey_completed' THEN 1 END) AS survey_completions,
-       COUNT(CASE WHEN a.occurred_at >= current_timestamp - INTERVAL '30 days' THEN 1 END) AS activity_last_30d,
-       COUNT(CASE WHEN a.occurred_at >= current_timestamp - INTERVAL '60 days'
-                   AND a.occurred_at < current_timestamp - INTERVAL '30 days' THEN 1 END) AS activity_prev_30d
+       COUNT(CASE WHEN a.occurred_at >= CAST(current_timestamp - INTERVAL '30 days' AS VARCHAR) THEN 1 END) AS activity_last_30d,
+       COUNT(CASE WHEN a.occurred_at >= CAST(current_timestamp - INTERVAL '60 days' AS VARCHAR)
+                   AND a.occurred_at < CAST(current_timestamp - INTERVAL '30 days' AS VARCHAR) THEN 1 END) AS activity_prev_30d
      FROM activities a
      JOIN companies comp ON a.company_id = comp.id
+     WHERE 1=1
+       ${dateFilter("a", days)}
      GROUP BY comp.id, comp.name
      HAVING COUNT(*) > 0
      ORDER BY (COUNT(CASE WHEN a.activity_type = 'survey_completed' THEN 1 END) * 5
@@ -195,4 +207,124 @@ export async function getEngagementScores(limit = 20): Promise<CompanyEngagement
       trend,
     };
   });
+}
+
+/** Survey dimension breakdown for a specific company */
+export async function getSurveyDimensions(companyId: string): Promise<{
+  company_name: string;
+  dimensions: { name: string; avg_score: number }[];
+  completions: number;
+}> {
+  const company = await queryOne<{ name: string }>(
+    "SELECT name FROM companies WHERE id = $id",
+    { $id: companyId }
+  );
+
+  const rows = await queryAll<{ detail: string }>(
+    `SELECT a.detail
+     FROM activities a
+     WHERE a.company_id = $companyId
+       AND a.activity_type = 'survey_completed'
+       AND a.detail IS NOT NULL`,
+    { $companyId: companyId }
+  );
+
+  const dimensionTotals: Record<string, { sum: number; count: number }> = {};
+
+  for (const row of rows) {
+    try {
+      const parsed = JSON.parse(row.detail);
+      const dims = parsed.dimensions || parsed.dimensionScores;
+      if (dims && typeof dims === "object") {
+        for (const [key, val] of Object.entries(dims)) {
+          const num = Number(val);
+          if (!isNaN(num)) {
+            if (!dimensionTotals[key]) dimensionTotals[key] = { sum: 0, count: 0 };
+            dimensionTotals[key].sum += num;
+            dimensionTotals[key].count++;
+          }
+        }
+      }
+    } catch { /* skip malformed */ }
+  }
+
+  const dimensions = Object.entries(dimensionTotals)
+    .map(([name, { sum, count }]) => ({ name, avg_score: sum / count }))
+    .sort((a, b) => b.avg_score - a.avg_score);
+
+  return {
+    company_name: company?.name || "Unknown",
+    dimensions,
+    completions: rows.length,
+  };
+}
+
+/** Weekly activity aggregation for a company timeline */
+export async function getCompanyTimeline(companyId: string): Promise<{
+  company_name: string;
+  weeks: { week_start: string; articles: number; pages: number; surveys: number; total: number }[];
+}> {
+  const company = await queryOne<{ name: string }>(
+    "SELECT name FROM companies WHERE id = $id",
+    { $id: companyId }
+  );
+
+  const rows = await queryAll<{
+    week_start: string;
+    articles: number;
+    pages: number;
+    surveys: number;
+    total: number;
+  }>(
+    `SELECT
+       date_trunc('week', CAST(a.occurred_at AS TIMESTAMP))::DATE::VARCHAR AS week_start,
+       COUNT(CASE WHEN a.activity_type = 'article_view' THEN 1 END) AS articles,
+       COUNT(CASE WHEN a.activity_type = 'page_view' THEN 1 END) AS pages,
+       COUNT(CASE WHEN a.activity_type = 'survey_completed' THEN 1 END) AS surveys,
+       COUNT(*) AS total
+     FROM activities a
+     WHERE a.company_id = $companyId
+     GROUP BY week_start
+     ORDER BY week_start DESC
+     LIMIT 26`,
+    { $companyId: companyId }
+  );
+
+  return {
+    company_name: company?.name || "Unknown",
+    weeks: rows.reverse(), // chronological order
+  };
+}
+
+/** Weekly reader trend for a specific article */
+export async function getArticleTrend(slug: string): Promise<{
+  title: string;
+  weeks: { week_start: string; readers: number }[];
+}> {
+  const titleRow = await queryOne<{ title: string }>(
+    `SELECT a.title FROM activities a
+     WHERE json_extract_string(a.detail, '$.slug') = $slug
+       AND a.title IS NOT NULL
+     LIMIT 1`,
+    { $slug: slug }
+  );
+
+  const rows = await queryAll<{ week_start: string; readers: number }>(
+    `SELECT
+       date_trunc('week', CAST(a.occurred_at AS TIMESTAMP))::DATE::VARCHAR AS week_start,
+       COUNT(DISTINCT ct.email) AS readers
+     FROM activities a
+     LEFT JOIN contacts ct ON a.contact_id = ct.id
+     WHERE a.activity_type = 'article_view'
+       AND json_extract_string(a.detail, '$.slug') = $slug
+     GROUP BY week_start
+     ORDER BY week_start DESC
+     LIMIT 26`,
+    { $slug: slug }
+  );
+
+  return {
+    title: titleRow?.title || decodeURIComponent(slug).replace(/-/g, " "),
+    weeks: rows.reverse(),
+  };
 }

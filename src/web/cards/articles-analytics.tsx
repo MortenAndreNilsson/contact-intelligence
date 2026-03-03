@@ -1,12 +1,15 @@
 import type { TopArticleWithMovement } from "../../types/index.ts";
-import { relativeDate, sectionBadge } from "./helpers.tsx";
+import { relativeDate, sectionBadge, PeriodToggle } from "./helpers.tsx";
+import type { Period } from "./helpers.tsx";
 
-export function ArticlesCard({ articles }: { articles: TopArticleWithMovement[] }) {
+export function ArticlesCard({ articles, period = "all" }: { articles: TopArticleWithMovement[]; period?: Period }) {
   const totalReaders = articles.reduce((s, a) => s + a.reader_count, 0);
   const newThisWeek = articles.reduce((s, a) => s + a.new_readers_7d, 0);
 
   return (
     <div>
+      <PeriodToggle current={period} basePath="/analytics/articles" />
+
       <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr)">
         <div class="stat-box">
           <div class="stat-value">{articles.length}</div>
@@ -30,7 +33,7 @@ export function ArticlesCard({ articles }: { articles: TopArticleWithMovement[] 
           {articles.map((a) => (
             <div
               class="table-row card-clickable"
-              hx-get={`/articles/${encodeURIComponent(a.slug || a.title)}/readers`}
+              hx-get={`/analytics/articles/${encodeURIComponent(a.slug || a.title)}/trend`}
               hx-target="#canvas"
               hx-swap="innerHTML"
             >
@@ -55,7 +58,7 @@ export function ArticlesCard({ articles }: { articles: TopArticleWithMovement[] 
       ) : (
         <div class="empty-state">
           <div class="empty-state-icon">&#9671;</div>
-          <div>No article views recorded yet.</div>
+          <div>No article views recorded{period !== "all" ? " in this period" : " yet"}.</div>
         </div>
       )}
     </div>

@@ -1,12 +1,15 @@
 import type { TopPageWithMovement } from "../../types/index.ts";
-import { relativeDate, sectionBadge } from "./helpers.tsx";
+import { relativeDate, sectionBadge, PeriodToggle } from "./helpers.tsx";
+import type { Period } from "./helpers.tsx";
 
-export function ViewsCard({ pages }: { pages: TopPageWithMovement[] }) {
+export function ViewsCard({ pages, period = "all" }: { pages: TopPageWithMovement[]; period?: Period }) {
   const totalViews = pages.reduce((s, p) => s + p.view_count, 0);
   const newThisWeek = pages.reduce((s, p) => s + p.new_views_7d, 0);
 
   return (
     <div>
+      <PeriodToggle current={period} basePath="/analytics/views" />
+
       <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr)">
         <div class="stat-box">
           <div class="stat-value">{pages.length}</div>
@@ -56,7 +59,7 @@ export function ViewsCard({ pages }: { pages: TopPageWithMovement[] }) {
       ) : (
         <div class="empty-state">
           <div class="empty-state-icon">&#9671;</div>
-          <div>No page views recorded yet.</div>
+          <div>No page views recorded{period !== "all" ? " in this period" : " yet"}.</div>
         </div>
       )}
     </div>

@@ -4,38 +4,85 @@ import { ArticlesCard } from "../cards/articles-analytics.tsx";
 import { ViewsCard } from "../cards/views-analytics.tsx";
 import { SurveysCard } from "../cards/surveys-analytics.tsx";
 import { EngagementCard } from "../cards/engagement-card.tsx";
-import { getTopArticles, getTopPages, getSurveyAnalytics, getEngagementScores } from "../../services/analytics.ts";
+import { SurveyDimensionsCard } from "../cards/survey-dimensions.tsx";
+import { CompanyTimelineCard } from "../cards/company-timeline.tsx";
+import { ArticleTrendCard } from "../cards/article-trend.tsx";
+import {
+  getTopArticles, getTopPages, getSurveyAnalytics, getEngagementScores,
+  getSurveyDimensions, getCompanyTimeline, getArticleTrend,
+} from "../../services/analytics.ts";
+import type { Period } from "../cards/helpers.tsx";
+import { periodToDays } from "../cards/helpers.tsx";
 
 const app = new Hono();
 
+function parsePeriod(raw: string | undefined): Period {
+  if (raw === "7d" || raw === "30d" || raw === "90d") return raw;
+  return "all";
+}
+
 app.get("/analytics/articles", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
-  const articles = await getTopArticles();
-  const content = <ArticlesCard articles={articles} />;
+  const period = parsePeriod(c.req.query("period"));
+  const articles = await getTopArticles(25, periodToDays(period));
+  const content = <ArticlesCard articles={articles} period={period} />;
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });
 
 app.get("/analytics/views", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
-  const pages = await getTopPages();
-  const content = <ViewsCard pages={pages} />;
+  const period = parsePeriod(c.req.query("period"));
+  const pages = await getTopPages(25, periodToDays(period));
+  const content = <ViewsCard pages={pages} period={period} />;
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });
 
 app.get("/analytics/surveys", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
-  const data = await getSurveyAnalytics();
-  const content = <SurveysCard data={data} />;
+  const period = parsePeriod(c.req.query("period"));
+  const data = await getSurveyAnalytics(periodToDays(period));
+  const content = <SurveysCard data={data} period={period} />;
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });
 
 app.get("/analytics/engagement", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
-  const companies = await getEngagementScores();
-  const content = <EngagementCard companies={companies} />;
+  const period = parsePeriod(c.req.query("period"));
+  const companies = await getEngagementScores(20, periodToDays(period));
+  const content = <EngagementCard companies={companies} period={period} />;
+  if (isHtmx) return c.html(content);
+  return c.html(<Layout>{content}</Layout>);
+});
+
+// Survey dimension breakdown for a company
+app.get("/analytics/surveys/:companyId/dimensions", async (c) => {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  const companyId = c.req.param("companyId");
+  const data = await getSurveyDimensions(companyId);
+  const content = <SurveyDimensionsCard data={data} companyId={companyId} />;
+  if (isHtmx) return c.html(content);
+  return c.html(<Layout>{content}</Layout>);
+});
+
+// Company engagement timeline
+app.get("/companies/:id/timeline", async (c) => {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  const id = c.req.param("id");
+  const data = await getCompanyTimeline(id);
+  const content = <CompanyTimelineCard data={data} companyId={id} />;
+  if (isHtmx) return c.html(content);
+  return c.html(<Layout>{content}</Layout>);
+});
+
+// Article reader trend
+app.get("/analytics/articles/:slug/trend", async (c) => {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  const slug = c.req.param("slug");
+  const data = await getArticleTrend(decodeURIComponent(slug));
+  const content = <ArticleTrendCard data={data} slug={slug} />;
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });

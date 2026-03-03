@@ -1,5 +1,6 @@
 import type { SurveyOverview } from "../../types/index.ts";
-import { relativeDate } from "./helpers.tsx";
+import { relativeDate, PeriodToggle } from "./helpers.tsx";
+import type { Period } from "./helpers.tsx";
 
 const maturityBadgeClass: Record<string, string> = {
   Beginner: "badge-coral",
@@ -14,9 +15,11 @@ function maturityBadge(level: string) {
   return <span class={`badge ${cls}`}>{level}</span>;
 }
 
-export function SurveysCard({ data }: { data: SurveyOverview }) {
+export function SurveysCard({ data, period = "all" }: { data: SurveyOverview; period?: Period }) {
   return (
     <div>
+      <PeriodToggle current={period} basePath="/analytics/surveys" />
+
       <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr)">
         <div class="stat-box">
           <div class="stat-value">{data.total_completions}</div>
@@ -39,7 +42,7 @@ export function SurveysCard({ data }: { data: SurveyOverview }) {
             {data.company_rankings.map((r) => (
               <div
                 class="table-row card-clickable"
-                hx-get={`/companies/${r.company_id}`}
+                hx-get={`/analytics/surveys/${r.company_id}/dimensions`}
                 hx-target="#canvas"
                 hx-swap="innerHTML"
               >
@@ -94,7 +97,7 @@ export function SurveysCard({ data }: { data: SurveyOverview }) {
       ) : (
         <div class="empty-state">
           <div class="empty-state-icon">&#9671;</div>
-          <div>No survey completions recorded yet.</div>
+          <div>No survey completions recorded{period !== "all" ? " in this period" : " yet"}.</div>
         </div>
       )}
     </div>

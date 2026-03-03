@@ -451,6 +451,10 @@ export function Layout({ children, title }: { children: Child; title?: string })
             opacity: 0.3;
           }
 
+          .period-btn { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.35rem 0.7rem; border-radius: 100px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); cursor: pointer; transition: all 0.15s; }
+          .period-btn:hover { border-color: var(--color-accent); color: var(--color-text-secondary); }
+          .period-btn-active { background: rgba(0,159,147,0.15); border-color: var(--visma-turquoise); color: var(--visma-turquoise); }
+
           .editable-field { display: inline-flex; align-items: center; }
           .editable-display { cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.1rem 0.3rem; border-radius: var(--radius-sm); transition: background 0.15s; }
           .editable-display:hover { background: var(--color-surface-elevated); }

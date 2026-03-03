@@ -1,4 +1,6 @@
 import type { CompanyEngagement } from "../../types/index.ts";
+import { PeriodToggle } from "./helpers.tsx";
+import type { Period } from "./helpers.tsx";
 
 function trendIndicator(trend: CompanyEngagement["trend"]) {
   if (trend === "rising") return <span class="font-mono" style="color: var(--visma-lime)">&#9650;</span>;
@@ -6,7 +8,7 @@ function trendIndicator(trend: CompanyEngagement["trend"]) {
   return <span class="font-mono" style="color: var(--color-text-muted)">&#9644;</span>;
 }
 
-export function EngagementCard({ companies }: { companies: CompanyEngagement[] }) {
+export function EngagementCard({ companies, period = "all" }: { companies: CompanyEngagement[]; period?: Period }) {
   const avgScore = companies.length > 0
     ? companies.reduce((s, c) => s + c.engagement_score, 0) / companies.length
     : 0;
@@ -14,6 +16,8 @@ export function EngagementCard({ companies }: { companies: CompanyEngagement[] }
 
   return (
     <div>
+      <PeriodToggle current={period} basePath="/analytics/engagement" />
+
       <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr)">
         <div class="stat-box">
           <div class="stat-value">{companies.length}</div>
@@ -37,7 +41,7 @@ export function EngagementCard({ companies }: { companies: CompanyEngagement[] }
           {companies.map((c) => (
             <div
               class="table-row card-clickable"
-              hx-get={`/companies/${c.company_id}`}
+              hx-get={`/companies/${c.company_id}/timeline`}
               hx-target="#canvas"
               hx-swap="innerHTML"
             >
@@ -64,7 +68,7 @@ export function EngagementCard({ companies }: { companies: CompanyEngagement[] }
       ) : (
         <div class="empty-state">
           <div class="empty-state-icon">&#9671;</div>
-          <div>No engagement data yet.</div>
+          <div>No engagement data{period !== "all" ? " in this period" : " yet"}.</div>
         </div>
       )}
     </div>
