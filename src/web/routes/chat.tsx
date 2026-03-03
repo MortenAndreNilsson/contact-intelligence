@@ -8,6 +8,11 @@ import { listContacts, getContact, getContactByEmail } from "../../services/cont
 import { listActivities } from "../../services/activities.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
 import { researchCompany } from "../../services/company-research.ts";
+import { getTopArticles, getTopPages, getSurveyAnalytics, getEngagementScores } from "../../services/analytics.ts";
+import { ArticlesCard } from "../cards/articles-analytics.tsx";
+import { ViewsCard } from "../cards/views-analytics.tsx";
+import { SurveysCard } from "../cards/surveys-analytics.tsx";
+import { EngagementCard } from "../cards/engagement-card.tsx";
 import type { CompanyWithStats, ContactWithDetails } from "../../types/index.ts";
 
 const app = new Hono();
@@ -45,6 +50,28 @@ function normalizeMessage(msg: string): string {
       const arg = m[1].replace(/[?.!]+$/, "").trim();
       if (arg.length > 0) return `research ${arg}`;
     }
+  }
+
+  // Articles analytics intent
+  if (/\b(articles|top articles|what.s being read|popular content|most read)\b/.test(msg) &&
+      !/\b(about|on|for)\s+\S/.test(msg)) {
+    return "articles";
+  }
+
+  // Views analytics intent
+  if (/\b(views|page views|top pages|most viewed|traffic)\b/.test(msg) &&
+      !/\b(about|on|for)\s+\S/.test(msg)) {
+    return "views";
+  }
+
+  // Surveys analytics intent
+  if (/\b(surveys|survey results|maturity|survey scores)\b/.test(msg)) {
+    return "surveys";
+  }
+
+  // Engagement analytics intent
+  if (/\b(engagement|who.s engaged|hot leads|rising|most active)\b/.test(msg)) {
+    return "engagement";
   }
 
   // Help intent
@@ -153,6 +180,10 @@ function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/company [name]</span> — show company profile</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/contacts</span> — list all contacts</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/contact [name/email]</span> — show contact profile</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/articles</span> — top articles by reader count</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/views</span> — top pages by view count</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/surveys</span> — survey completions and scores</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/engagement</span> — company engagement rankings</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/sync</span> — show sync status</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/enrich</span> — enrich contacts via Discovery Engine</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/research [company]</span> — deep research a company via Gemini</div>
@@ -233,6 +264,30 @@ app.post("/chat", async (c) => {
       return c.html(<ContactListFragment contacts={contacts} />);
     }
     return c.html(<div class="card"><div class="text-sm text-muted">No contact found matching "{query}".</div></div>);
+  }
+
+  // Articles analytics
+  if (message === "articles" || message === "top articles") {
+    const articles = await getTopArticles();
+    return c.html(<ArticlesCard articles={articles} />);
+  }
+
+  // Views analytics
+  if (message === "views" || message === "page views" || message === "top pages") {
+    const pages = await getTopPages();
+    return c.html(<ViewsCard pages={pages} />);
+  }
+
+  // Surveys analytics
+  if (message === "surveys" || message === "survey results" || message === "survey scores") {
+    const data = await getSurveyAnalytics();
+    return c.html(<SurveysCard data={data} />);
+  }
+
+  // Engagement analytics
+  if (message === "engagement" || message === "hot leads" || message === "most active") {
+    const companies = await getEngagementScores();
+    return c.html(<EngagementCard companies={companies} />);
   }
 
   // Enrich contacts

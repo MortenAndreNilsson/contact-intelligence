@@ -116,3 +116,61 @@ export interface EnrichResult {
   failed: number;
   companiesCreated: number;
 }
+
+// --- Analytics types ---
+
+export interface TopArticleWithMovement {
+  title: string;
+  slug: string | null;
+  section: string | null;
+  reader_count: number;
+  new_readers_7d: number;
+  last_read: string;
+}
+
+export interface TopPageWithMovement {
+  title: string;
+  path: string | null;
+  section: string | null;
+  view_count: number;
+  unique_visitors: number;
+  new_views_7d: number;
+  last_viewed: string;
+}
+
+export interface CompanySurveyStats {
+  company_name: string;
+  company_id: string;
+  avg_score: number;
+  completion_count: number;
+  latest_completion: string;
+  maturity_level: string;
+}
+
+export interface SurveyCompletion {
+  contact_name: string | null;
+  contact_email: string;
+  company_name: string | null;
+  score: number;
+  maturity_level: string;
+  completed_at: string;
+}
+
+export interface SurveyOverview {
+  total_completions: number;
+  avg_overall_score: number | null;
+  companies_surveyed: number;
+  company_rankings: CompanySurveyStats[];
+  recent_completions: SurveyCompletion[];
+}
+
+export interface CompanyEngagement {
+  company_id: string;
+  company_name: string;
+  article_reads: number;
+  page_views: number;
+  survey_completions: number;
+  engagement_score: number;
+  activity_last_30d: number;
+  trend: "rising" | "stable" | "cooling";
+}

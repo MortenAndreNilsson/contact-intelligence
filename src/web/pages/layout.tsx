@@ -337,6 +337,7 @@ export function Layout({ children, title }: { children: Child; title?: string })
           .badge-orange { background: rgba(249,124,0,0.15); color: #F97C00; }
           .badge-lime { background: rgba(140,181,1,0.15); color: #8CB501; }
           .badge-coral { background: rgba(239,86,75,0.15); color: #EF564B; }
+          .badge-yellow { background: rgba(244,205,78,0.15); color: #F4CD4E; }
           .badge-green { background: rgba(14,127,136,0.15); color: #0E7F88; }
 
           .stat-grid {
@@ -482,6 +483,10 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 { cmd: '/company ', desc: 'Show company profile', hasArg: true },
                 { cmd: '/contacts', desc: 'List all contacts' },
                 { cmd: '/contact ', desc: 'Show contact profile', hasArg: true },
+                { cmd: '/articles', desc: 'Top articles by reader count' },
+                { cmd: '/views', desc: 'Top pages by view count' },
+                { cmd: '/surveys', desc: 'Survey completions and scores' },
+                { cmd: '/engagement', desc: 'Company engagement rankings' },
                 { cmd: '/sync', desc: 'Show sync status' },
                 { cmd: '/enrich', desc: 'Enrich contacts via Discovery Engine' },
                 { cmd: '/research ', desc: 'Deep research a company via Gemini', hasArg: true },

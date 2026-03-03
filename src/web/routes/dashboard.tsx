@@ -3,6 +3,7 @@ import { Layout } from "../pages/layout.tsx";
 import { DashboardStatsCard } from "../cards/dashboard-stats.tsx";
 import { getDashboardStats, getArticleReaders } from "../../services/dashboard.ts";
 import type { ArticleReader } from "../../types/index.ts";
+import { relativeDate } from "../cards/helpers.tsx";
 
 const app = new Hono();
 
@@ -14,19 +15,6 @@ app.get("/", async (c) => {
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });
-
-function relativeDate(dateStr: string): string {
-  const then = new Date(dateStr).getTime();
-  if (isNaN(then)) return "—";
-  const diff = Date.now() - then;
-  const days = Math.floor(diff / 86400000);
-  if (days < 1) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days}d ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `${weeks}w ago`;
-  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
 
 function ArticleReadersCard({ slug, readers }: { slug: string; readers: ArticleReader[] }) {
   const title = readers[0]?.contact_name ? slug : slug; // slug is used as label
