@@ -9,10 +9,13 @@ import { listActivities } from "../../services/activities.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
 import { researchCompany } from "../../services/company-research.ts";
 import { getTopArticles, getTopPages, getSurveyAnalytics, getEngagementScores } from "../../services/analytics.ts";
+import { listLists, getList, getEffectiveMembers } from "../../services/lists.ts";
 import { ArticlesCard } from "../cards/articles-analytics.tsx";
 import { ViewsCard } from "../cards/views-analytics.tsx";
 import { SurveysCard } from "../cards/surveys-analytics.tsx";
 import { EngagementCard } from "../cards/engagement-card.tsx";
+import { ListsCard } from "../cards/lists-card.tsx";
+import { ListDetailCard } from "../cards/list-detail-card.tsx";
 import type { CompanyWithStats, ContactWithDetails } from "../../types/index.ts";
 
 const app = new Hono();
@@ -72,6 +75,12 @@ function normalizeMessage(msg: string): string {
   // Engagement analytics intent
   if (/\b(engagement|who.s engaged|hot leads|rising|most active)\b/.test(msg)) {
     return "engagement";
+  }
+
+  // Lists intent
+  if (/\b(lists|my lists|segments|segmentation|all lists)\b/.test(msg) &&
+      !/\b(about|on|for)\s+\S/.test(msg)) {
+    return "lists";
   }
 
   // Help intent
@@ -184,6 +193,8 @@ function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/views</span> — top pages by view count</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/surveys</span> — survey completions and scores</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/engagement</span> — company engagement rankings</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/lists</span> — view all lists and segments</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/list [name]</span> — show a specific list</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/sync</span> — show sync status</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/enrich</span> — enrich contacts via Discovery Engine</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/research [company]</span> — deep research a company via Gemini</div>
@@ -288,6 +299,30 @@ app.post("/chat", async (c) => {
   if (message === "engagement" || message === "hot leads" || message === "most active") {
     const companies = await getEngagementScores();
     return c.html(<EngagementCard companies={companies} />);
+  }
+
+  // Lists overview
+  if (message === "lists" || message === "my lists" || message === "segments") {
+    const lists = await listLists();
+    return c.html(<ListsCard lists={lists} />);
+  }
+
+  // Specific list by name
+  if (message.startsWith("list ") && message !== "list companies" && message !== "list contacts") {
+    const query = message.slice(5).trim();
+    const allLists = await listLists();
+    const matched = allLists.filter((l) => l.name.toLowerCase().includes(query));
+    if (matched.length === 1) {
+      const list = await getList(matched[0]!.id);
+      if (list) {
+        const members = await getEffectiveMembers(list);
+        return c.html(<ListDetailCard list={list} members={members} />);
+      }
+    }
+    if (matched.length > 1) {
+      return c.html(<ListsCard lists={matched} />);
+    }
+    return c.html(<div class="card"><div class="text-sm text-muted">No list found matching "{query}".</div></div>);
   }
 
   // Enrich contacts

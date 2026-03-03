@@ -7,6 +7,7 @@ import contacts from "./routes/contacts.tsx";
 import chat from "./routes/chat.tsx";
 import sync from "./routes/sync.tsx";
 import analytics from "./routes/analytics.tsx";
+import lists from "./routes/lists.tsx";
 
 const app = new Hono();
 
@@ -21,6 +22,7 @@ app.route("/", contacts);
 app.route("/", chat);
 app.route("/", sync);
 app.route("/", analytics);
+app.route("/", lists);
 
 // 404
 app.notFound((c) => {

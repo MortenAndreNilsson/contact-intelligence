@@ -498,6 +498,8 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 { cmd: '/views', desc: 'Top pages by view count' },
                 { cmd: '/surveys', desc: 'Survey completions and scores' },
                 { cmd: '/engagement', desc: 'Company engagement rankings' },
+                { cmd: '/lists', desc: 'View all lists and segments' },
+                { cmd: '/list ', desc: 'Show a specific list', hasArg: true },
                 { cmd: '/sync', desc: 'Show sync status' },
                 { cmd: '/enrich', desc: 'Enrich contacts via Discovery Engine' },
                 { cmd: '/research ', desc: 'Deep research a company via Gemini', hasArg: true },

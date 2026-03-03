@@ -172,6 +172,45 @@ export interface SurveyOverview {
   recent_completions: SurveyCompletion[];
 }
 
+// --- List types ---
+
+export interface FilterCriteria {
+  industry?: string;
+  country?: string;
+  tag?: string;
+  min_engagement?: number;
+  has_survey?: boolean;
+}
+
+export interface List {
+  id: string;
+  name: string;
+  description: string | null;
+  list_type: "manual" | "smart";
+  filter_criteria: FilterCriteria | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListRow extends Omit<List, "filter_criteria"> {
+  filter_criteria: string | null;
+}
+
+export interface ListWithStats extends List {
+  member_count: number;
+}
+
+export interface ListMember {
+  contact_id: string;
+  contact_name: string | null;
+  contact_email: string;
+  company_name: string | null;
+  job_title: string | null;
+  activity_count: number;
+  engagement_score: number;
+  added_at: string | null;
+}
+
 export interface CompanyEngagement {
   company_id: string;
   company_name: string;
