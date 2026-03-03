@@ -162,6 +162,44 @@ After sync, **materialize** resolves identities (domain → company, email → c
 
 ---
 
+## Phase 7 — Multi-User Sharing
+
+*Local-first DuckDB for private engagement, Firestore for shared company facts. See [docs/MULTI-USER-ARCHITECTURE.md](docs/MULTI-USER-ARCHITECTURE.md) for full investigation.*
+
+### 7.1 Firebase project setup
+- Create or reuse a Firestore database for `shared_companies/{domain}` collection
+- Security rules: authenticated users only (`request.auth != null`)
+- No SDK — reuse existing REST pattern from `sync-surveys.ts` with `gcloud auth`
+
+### 7.2 Company sync service
+- New `sync-companies.ts` — bidirectional pull/push of generic company fields
+- Shared fields: `name`, `domain`, `industry`, `size_bucket`, `country`, `description`
+- Private fields stay local: `notes`, `tags`
+- Merge strategy: last-write-wins by `updated_at`, with `updated_by` tracking
+- Added to pipeline: `sync:events → sync:surveys → sync:companies → materialize → enrich`
+
+### 7.3 Push on edit
+- Hook `updateCompany()` — when a shared field changes, push to Firestore immediately
+- Hook `researchCompany()` — after Gemini generates a description, push it
+- Hook `enrichContacts()` — after discovering a new company, push it
+
+### 7.4 Opt-in config
+- `SHARED_FIRESTORE_PROJECT` env var — when absent, no sharing (zero behavior change)
+- `USER_EMAIL` env var — identifies who made each edit in Firestore
+- New user onboarding: clone repo, set `.env`, run `sync:all`, done
+
+### 7.5 UI sync indicators
+- Small "shared" indicator on company profile fields that sync to Firestore
+- Sync log entries for company pull/push operations
+
+### 7.6 Contact identity sharing (optional)
+- `shared_contacts/{email_hash}` — SHA-256 hashed email as document ID
+- Share only `name` and `job_title` (from Discovery Engine — public data)
+- Never share: consent, notes, tags, activities
+- GDPR consideration: hashed email + name is still personal data — requires EU region + team agreement
+
+---
+
 ## Data Source Notes
 
 **Surveys depend on the test-disco-cm Firestore project.** This is a separate GCP project from the CMS. If surveys move to a production project or the collection structure changes, `sync-surveys.ts` will need updating. The two Firestore collections used:
@@ -185,3 +223,4 @@ Both are synced and deduplicated by document ID. The materialize step resolves e
 | Phase 4 | Medium (4-5h) | Medium — segmentation | Phase 2 for tag management |
 | Phase 5 | Small (2-3h) | Medium — data portability | Phase 3 for meaningful reports |
 | Phase 6 | Medium (3-4h) | Medium — automation | All sync routes working |
+| Phase 7 | Medium (8-10h) | High — team collaboration | Phases 1-3, GCP Firestore project |
