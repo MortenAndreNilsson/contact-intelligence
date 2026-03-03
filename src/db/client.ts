@@ -1,9 +1,10 @@
 import duckdb from "@duckdb/node-api";
-import { readFileSync, mkdirSync, existsSync } from "fs";
+import { readFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
 
 const DB_DIR = join(import.meta.dir, "../../data");
 const DB_PATH = join(DB_DIR, "contact-intel.duckdb");
+const WAL_PATH = DB_PATH + ".wal";
 const SCHEMA_PATH = join(import.meta.dir, "schema.sql");
 
 let instance: duckdb.DuckDBInstance | null = null;
@@ -17,8 +18,20 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
     mkdirSync(DB_DIR, { recursive: true });
   }
 
-  instance = await duckdb.DuckDBInstance.create(DB_PATH);
-  connection = await instance.connect();
+  // Try opening; if WAL is corrupted, delete it and retry
+  try {
+    instance = await duckdb.DuckDBInstance.create(DB_PATH);
+    connection = await instance.connect();
+  } catch (err: any) {
+    if (err.message?.includes("WAL") && existsSync(WAL_PATH)) {
+      console.warn("Corrupted WAL detected — deleting and retrying...");
+      unlinkSync(WAL_PATH);
+      instance = await duckdb.DuckDBInstance.create(DB_PATH);
+      connection = await instance.connect();
+    } else {
+      throw err;
+    }
+  }
 
   // Run schema — split on semicolons and execute each statement
   const schema = readFileSync(SCHEMA_PATH, "utf-8");
@@ -161,13 +174,19 @@ export async function exec(sql: string): Promise<void> {
 
 /** Close DuckDB connection and instance cleanly (flushes WAL). */
 async function closeDatabase(): Promise<void> {
-  if (connection) {
-    connection.close();
-    connection = null;
-  }
-  if (instance) {
-    await instance.close();
-    instance = null;
+  try {
+    if (connection) {
+      // Force WAL checkpoint before closing to prevent corruption
+      try { await connection.run("CHECKPOINT"); } catch { /* best effort */ }
+      connection.close();
+      connection = null;
+    }
+    if (instance) {
+      await instance.close();
+      instance = null;
+    }
+  } catch (err: any) {
+    console.error("Error during DuckDB shutdown:", err.message);
   }
   initialized = false;
   console.log("DuckDB closed cleanly");
