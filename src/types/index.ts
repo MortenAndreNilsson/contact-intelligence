@@ -117,6 +117,14 @@ export interface EnrichResult {
   companiesCreated: number;
 }
 
+export interface PageVisitor {
+  contact_name: string | null;
+  contact_email: string;
+  company_name: string | null;
+  view_count: number;
+  last_viewed: string;
+}
+
 // --- Analytics types ---
 
 export interface TopArticleWithMovement {

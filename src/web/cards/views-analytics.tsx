@@ -28,7 +28,12 @@ export function ViewsCard({ pages }: { pages: TopPageWithMovement[] }) {
         <div class="card">
           <div class="card-label mb-xs">Pages by View Count</div>
           {pages.map((p) => (
-            <div class="table-row">
+            <div
+              class="table-row card-clickable"
+              hx-get={`/pages/${encodeURIComponent(p.path || p.title)}/visitors`}
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+            >
               <div class="flex-1">
                 <div style="font-weight: 600; font-size: 0.9rem">{p.title}</div>
                 <div class="flex gap-xs items-center" style="margin-top: 2px">

@@ -11,6 +11,7 @@ import { getCompany, updateCompany } from "../../services/companies.ts";
 import { listContacts } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
 import { researchCompany } from "../../services/company-research.ts";
+import { createActivity } from "../../services/activities.ts";
 
 const app = new Hono();
 
@@ -58,6 +59,32 @@ app.get("/sync/status", async (c) => {
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
+});
+
+// POST /sync/all — run full pipeline: events → surveys → materialize → enrich
+app.post("/sync/all", async (c) => {
+  const steps = [
+    { name: "cms_events", fn: syncEvents },
+    { name: "survey_responses", fn: syncSurveys },
+    { name: "materialize", fn: materialize },
+    { name: "people_enrichment", fn: enrichContacts },
+  ];
+
+  for (const step of steps) {
+    try {
+      const result = await step.fn();
+      console.log(`sync-all [${step.name}]:`, result);
+    } catch (err: any) {
+      console.error(`sync-all [${step.name}] failed:`, err.message);
+      await run(
+        `INSERT INTO sync_log (id, source, last_sync_at, records_processed, status, error_message)
+         VALUES ($id, $source, CAST(current_timestamp AS VARCHAR), 0, 'error', $err)`,
+        { $id: generateId(), $source: step.name, $err: err.message }
+      );
+    }
+  }
+
+  return c.html(await renderSyncStatus());
 });
 
 // POST /sync/events — trigger CMS events sync (in-process)
@@ -121,6 +148,33 @@ app.post("/sync/enrich", async (c) => {
   }
 
   return c.html(await renderSyncStatus());
+});
+
+// POST /companies/:id/note — add a note to a company
+app.post("/companies/:id/note", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.parseBody();
+  const note = String(body.note || "").trim();
+  const company = await getCompany(id);
+
+  if (!company || !note) {
+    return c.html(<div class="card"><div class="text-sm text-muted">{!company ? "Company not found." : "Note cannot be empty."}</div></div>);
+  }
+
+  await createActivity(
+    null,
+    id,
+    "note_added",
+    "web_ui",
+    null,
+    note,
+    null,
+    new Date().toISOString()
+  );
+
+  const contacts = await listContacts({ companyId: id });
+  const activities = await listActivities({ companyId: id, limit: 20 });
+  return c.html(<CompanyProfileCard company={company} contacts={contacts} activities={activities} />);
 });
 
 // POST /companies/:id/research — trigger Gemini deep research for a company

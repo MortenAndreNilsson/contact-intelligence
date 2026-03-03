@@ -67,7 +67,12 @@ export function SurveysCard({ data }: { data: SurveyOverview }) {
             <div class="card">
               <div class="card-label mb-xs">Recent Completions</div>
               {data.recent_completions.map((c) => (
-                <div class="table-row">
+                <div
+                  class="table-row card-clickable"
+                  hx-get={`/contacts/by-email/${encodeURIComponent(c.contact_email)}`}
+                  hx-target="#canvas"
+                  hx-swap="innerHTML"
+                >
                   <div class="flex-1">
                     <div style="font-weight: 600; font-size: 0.9rem">{c.contact_name || c.contact_email}</div>
                     <div class="text-xs text-muted">

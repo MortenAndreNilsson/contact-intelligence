@@ -68,6 +68,30 @@ export function ContactProfileCard({
             {contact.notes}
           </div>
         )}
+
+        {/* Add note form */}
+        <form
+          class="flex gap-xs mt-sm"
+          hx-post={`/contacts/${contact.id}/note`}
+          hx-target="#canvas"
+          hx-swap="innerHTML"
+        >
+          <input
+            type="text"
+            name="note"
+            class="chat-input"
+            placeholder="Add a note..."
+            style="font-size: 0.85rem; padding: 0.5rem 0.75rem"
+            required
+          />
+          <button
+            type="submit"
+            class="chat-submit"
+            style="padding: 0.5rem 0.75rem; font-size: 0.8rem; white-space: nowrap"
+          >
+            Add
+          </button>
+        </form>
       </div>
 
       {activities.length > 0 && (

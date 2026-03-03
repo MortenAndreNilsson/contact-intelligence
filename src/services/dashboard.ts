@@ -1,5 +1,5 @@
 import { queryOne, queryAll } from "../db/client.ts";
-import type { DashboardStats, CompanyWithStats, ActivityWithNames, CompanyRow, TopArticle, ArticleReader } from "../types/index.ts";
+import type { DashboardStats, CompanyWithStats, ActivityWithNames, CompanyRow, TopArticle, ArticleReader, PageVisitor } from "../types/index.ts";
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   const counts = (await queryOne<{ totalCompanies: number; totalContacts: number; totalActivities: number }>(
@@ -91,6 +91,26 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     topArticles,
     newContent,
   };
+}
+
+/** Get individual visitors for a specific page (by path) */
+export async function getPageVisitors(path: string): Promise<PageVisitor[]> {
+  return queryAll<PageVisitor>(
+    `SELECT
+       ct.name AS contact_name,
+       ct.email AS contact_email,
+       comp.name AS company_name,
+       COUNT(*) AS view_count,
+       MAX(a.occurred_at) AS last_viewed
+     FROM activities a
+     LEFT JOIN contacts ct ON a.contact_id = ct.id
+     LEFT JOIN companies comp ON a.company_id = comp.id
+     WHERE a.activity_type = 'page_view'
+       AND json_extract_string(a.detail, '$.slug') = $path
+     GROUP BY ct.email, ct.name, comp.name
+     ORDER BY last_viewed DESC`,
+    { $path: path }
+  );
 }
 
 /** Get individual readers for a specific article (by slug) */

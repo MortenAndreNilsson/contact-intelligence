@@ -67,6 +67,21 @@ export function SyncStatusCard({
         </div>
       </div>
 
+      {/* Sync All */}
+      <div class="card" style="text-align: center">
+        <button
+          class="chat-submit"
+          style="padding: 0.6rem 1.5rem; font-size: 0.85rem"
+          hx-post="/sync/all"
+          hx-target="#canvas"
+          hx-swap="innerHTML"
+          disabled={!!running}
+        >
+          {running ? "Running..." : "Sync All"}
+        </button>
+        <div class="text-xs text-muted" style="margin-top: 0.5rem">Events → Surveys → Materialize → Enrich</div>
+      </div>
+
       {/* Sync Sources */}
       <div class="card">
         <div class="card-label mb-xs">Sync Sources</div>

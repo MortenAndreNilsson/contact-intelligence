@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { Layout } from "../pages/layout.tsx";
 import { ContactProfileCard } from "../cards/contact-profile.tsx";
 import { listContacts, getContact, getContactByEmail } from "../../services/contacts.ts";
-import { listActivities } from "../../services/activities.ts";
+import { listActivities, createActivity } from "../../services/activities.ts";
 import { enrichSingleContact } from "../../services/enrich-contacts.ts";
 import type { ContactWithDetails } from "../../types/index.ts";
 
@@ -106,6 +106,34 @@ app.post("/contacts/:id/enrich", async (c) => {
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
+});
+
+// POST /contacts/:id/note — add a note to a contact
+app.post("/contacts/:id/note", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.parseBody();
+  const note = String(body.note || "").trim();
+  const contact = await getContact(id);
+
+  if (!contact || !note) {
+    const msg = <div class="card"><div class="text-sm text-muted">{!contact ? "Contact not found." : "Note cannot be empty."}</div></div>;
+    return c.html(msg);
+  }
+
+  await createActivity(
+    id,
+    contact.company_id,
+    "note_added",
+    "web_ui",
+    null,
+    note,
+    null,
+    new Date().toISOString()
+  );
+
+  const updated = await getContact(id);
+  const activities = await listActivities({ contactId: id, limit: 20 });
+  return c.html(<ContactProfileCard contact={updated!} activities={activities} />);
 });
 
 app.get("/contacts/:id", async (c) => {
