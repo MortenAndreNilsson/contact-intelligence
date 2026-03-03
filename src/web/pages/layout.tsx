@@ -451,6 +451,13 @@ export function Layout({ children, title }: { children: Child; title?: string })
             opacity: 0.3;
           }
 
+          .editable-field { display: inline-flex; align-items: center; }
+          .editable-display { cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.1rem 0.3rem; border-radius: var(--radius-sm); transition: background 0.15s; }
+          .editable-display:hover { background: var(--color-surface-elevated); }
+          .edit-icon { font-size: 0.7rem; opacity: 0; transition: opacity 0.15s; color: var(--color-text-muted); }
+          .editable-display:hover .edit-icon { opacity: 0.7; }
+          .editable-input { background: var(--color-surface-elevated); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0.2rem 0.4rem; color: var(--color-text); font-family: var(--font-body); font-size: inherit; outline: none; min-width: 4rem; }
+
           a { color: var(--color-accent); text-decoration: none; }
           a:hover { color: var(--color-accent-hover); }
 

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { Layout } from "../pages/layout.tsx";
 import { CompanyProfileCard } from "../cards/company-profile.tsx";
-import { listCompanies, getCompany } from "../../services/companies.ts";
+import { listCompanies, getCompany, updateCompany } from "../../services/companies.ts";
 import { listContacts } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
 import type { CompanyWithStats } from "../../types/index.ts";
@@ -74,6 +74,39 @@ app.get("/companies/:id", async (c) => {
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
+});
+
+// PATCH /companies/:id — update company fields inline
+app.patch("/companies/:id", async (c) => {
+  const id = c.req.param("id");
+  const company = await getCompany(id);
+  if (!company) {
+    return c.html(<div class="text-sm" style="color: var(--visma-coral)">Company not found.</div>, 404);
+  }
+
+  const body = await c.req.parseBody();
+  const fields: Record<string, unknown> = {};
+  for (const key of ["industry", "size_bucket", "country", "notes", "name"]) {
+    if (key in body) {
+      fields[key] = String(body[key]).trim() || null;
+    }
+  }
+  if ("tags" in body) {
+    try {
+      fields.tags = JSON.parse(String(body.tags));
+    } catch {
+      fields.tags = [];
+    }
+  }
+
+  if (Object.keys(fields).length > 0) {
+    await updateCompany(id, fields);
+  }
+
+  const updated = await getCompany(id);
+  const contacts = await listContacts({ companyId: id });
+  const activities = await listActivities({ companyId: id, limit: 20 });
+  return c.html(<CompanyProfileCard company={updated!} contacts={contacts} activities={activities} />);
 });
 
 export default app;

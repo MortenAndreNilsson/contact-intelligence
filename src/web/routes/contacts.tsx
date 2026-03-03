@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { Layout } from "../pages/layout.tsx";
 import { ContactProfileCard } from "../cards/contact-profile.tsx";
-import { listContacts, getContact, getContactByEmail } from "../../services/contacts.ts";
+import { listContacts, getContact, getContactByEmail, updateContact } from "../../services/contacts.ts";
 import { listActivities, createActivity } from "../../services/activities.ts";
 import { enrichSingleContact } from "../../services/enrich-contacts.ts";
 import type { ContactWithDetails } from "../../types/index.ts";
@@ -106,6 +106,38 @@ app.post("/contacts/:id/enrich", async (c) => {
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
+});
+
+// PATCH /contacts/:id — update contact fields inline
+app.patch("/contacts/:id", async (c) => {
+  const id = c.req.param("id");
+  const contact = await getContact(id);
+  if (!contact) {
+    return c.html(<div class="text-sm" style="color: var(--visma-coral)">Contact not found.</div>, 404);
+  }
+
+  const body = await c.req.parseBody();
+  const fields: Record<string, unknown> = {};
+  for (const key of ["job_title", "notes", "name"]) {
+    if (key in body) {
+      fields[key] = String(body[key]).trim() || null;
+    }
+  }
+  if ("tags" in body) {
+    try {
+      fields.tags = JSON.parse(String(body.tags));
+    } catch {
+      fields.tags = [];
+    }
+  }
+
+  if (Object.keys(fields).length > 0) {
+    await updateContact(id, fields);
+  }
+
+  const updated = await getContact(id);
+  const activities = await listActivities({ contactId: id, limit: 20 });
+  return c.html(<ContactProfileCard contact={updated!} activities={activities} />);
 });
 
 // POST /contacts/:id/note — add a note to a contact
