@@ -109,13 +109,15 @@ export async function getSurveyAnalytics(days: number | null = null): Promise<Su
     company_name: string | null;
     score: number;
     completed_at: string;
+    source: string | null;
   }>(
     `SELECT
        ct.name AS contact_name,
        ct.email AS contact_email,
        comp.name AS company_name,
        CAST(json_extract_string(a.detail, '$.avgScore') AS DOUBLE) AS score,
-       a.occurred_at AS completed_at
+       a.occurred_at AS completed_at,
+       a.source AS source
      FROM activities a
      LEFT JOIN contacts ct ON a.contact_id = ct.id
      LEFT JOIN companies comp ON a.company_id = comp.id

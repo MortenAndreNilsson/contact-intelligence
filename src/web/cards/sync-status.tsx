@@ -117,6 +117,9 @@ export function SyncStatusCard({
           <div class="flex-1">
             <div style="font-weight: 600">Survey Responses</div>
             <div class="text-xs text-muted">
+              ET-CMS (primary) + Lighthouse View (legacy)
+            </div>
+            <div class="text-xs text-muted">
               Last sync: {formatDate(surveyLog?.last_sync_at ?? null)}
               {surveyLog ? ` · ${surveyLog.records_created} created, ${surveyLog.records_skipped} skipped` : ""}
             </div>

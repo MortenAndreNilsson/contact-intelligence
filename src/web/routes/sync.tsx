@@ -4,7 +4,8 @@ import { SyncStatusCard } from "../cards/sync-status.tsx";
 import { CompanyProfileCard } from "../cards/company-profile.tsx";
 import { queryAll, queryOne, run, generateId } from "../../db/client.ts";
 import { syncEvents } from "../../services/sync-events.ts";
-import { syncSurveys } from "../../services/sync-surveys.ts";
+import { syncAllSurveys } from "../../services/sync-surveys.ts";
+import type { DualSyncResult } from "../../services/sync-surveys.ts";
 import { materialize } from "../../services/materialize.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
 import { getCompany, updateCompany } from "../../services/companies.ts";
@@ -65,7 +66,7 @@ app.get("/sync/status", async (c) => {
 app.post("/sync/all", async (c) => {
   const steps = [
     { name: "cms_events", label: "CMS Events", fn: syncEvents },
-    { name: "survey_responses", label: "Surveys", fn: syncSurveys },
+    { name: "survey_responses", label: "Surveys", fn: syncAllSurveys },
     { name: "materialize", label: "Materialize", fn: materialize },
     { name: "people_enrichment", label: "Enrich", fn: enrichContacts },
   ];
@@ -144,17 +145,21 @@ app.post("/sync/events", async (c) => {
   }
 });
 
-// POST /sync/surveys — trigger survey sync (in-process)
+// POST /sync/surveys — trigger survey sync from both sources (in-process)
 app.post("/sync/surveys", async (c) => {
   try {
-    const result = await syncSurveys();
-    console.log(`sync-surveys: ${result.processed} processed, ${result.created} created, ${result.skipped} skipped`);
+    const result = await syncAllSurveys();
+    const { lighthouse, etcms } = result;
+    console.log(`sync-surveys: Lighthouse=${lighthouse.created} new, ET-CMS=${etcms.created} new`);
     const syncStatus = await renderSyncStatus();
     return c.html(
       <div>
         <div class="card">
           <div class="card-label mb-xs" style="color: var(--visma-turquoise)">Survey Sync Complete</div>
-          <div class="text-sm text-secondary">{result.processed} processed, {result.created} new, {result.skipped} skipped</div>
+          <div class="text-sm text-secondary" style="display: flex; flex-direction: column; gap: 0.25rem">
+            <div><span class="badge badge-turquoise">ET-CMS</span> {etcms.processed} processed, {etcms.created} new, {etcms.skipped} skipped</div>
+            <div><span class="badge badge-muted">Lighthouse</span> {lighthouse.processed} processed, {lighthouse.created} new, {lighthouse.skipped} skipped</div>
+          </div>
         </div>
         {syncStatus}
       </div>

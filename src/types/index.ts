@@ -162,6 +162,7 @@ export interface SurveyCompletion {
   score: number;
   maturity_level: string;
   completed_at: string;
+  source: string | null;
 }
 
 export interface SurveyOverview {

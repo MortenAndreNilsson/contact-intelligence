@@ -137,11 +137,14 @@ async function materializeSurveyActivities(): Promise<number> {
     dimensionScores: string | null;
     completedAt: string | null;
     slug: string | null;
+    source: string | null;
   }>(
-    `SELECT s._id, s.email, s.overallScore, s.maturityLevel, s.dimensionScores, s.completedAt, s.slug
+    `SELECT s._id, s.email, s.overallScore, s.maturityLevel, s.dimensionScores, s.completedAt, s.slug, s.source
      FROM survey_responses s
      WHERE s._id NOT IN (
-       SELECT source_ref FROM activities WHERE source = 'survey_sync' AND source_ref IS NOT NULL
+       SELECT source_ref FROM activities
+       WHERE source IN ('survey_sync', 'survey_lighthouse', 'survey_etcms')
+         AND source_ref IS NOT NULL
      )`
   );
 
@@ -161,13 +164,16 @@ async function materializeSurveyActivities(): Promise<number> {
       slug: resp.slug,
     });
 
+    const activitySource = resp.source === "et-cms" ? "survey_etcms" : "survey_lighthouse";
+
     await run(
       `INSERT INTO activities (id, contact_id, company_id, activity_type, source, source_ref, title, detail, occurred_at)
-       VALUES ($id, $contactId, $companyId, 'survey_completed', 'survey_sync', $sourceRef, $title, $detail, $occurredAt)`,
+       VALUES ($id, $contactId, $companyId, 'survey_completed', $source, $sourceRef, $title, $detail, $occurredAt)`,
       {
         $id: generateId(),
         $contactId: contact?.id ?? null,
         $companyId: contact?.company_id ?? null,
+        $source: activitySource,
         $sourceRef: resp._id,
         $title: `Survey completed${resp.slug ? ` (${resp.slug})` : ""}`,
         $detail: detail,

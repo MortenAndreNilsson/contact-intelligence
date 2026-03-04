@@ -87,7 +87,11 @@ export function SurveysCard({ data, period = "all" }: { data: SurveyOverview; pe
                       <span class="font-mono text-sm" style="color: var(--visma-turquoise)">{c.score.toFixed(1)}</span>
                       {maturityBadge(c.maturity_level)}
                     </div>
-                    <div class="text-xs text-muted" style="margin-top: 2px">{relativeDate(c.completed_at)}</div>
+                    <div class="flex gap-xs items-center" style="justify-content: flex-end; margin-top: 2px">
+                      {c.source === "survey_etcms" && <span class="badge badge-turquoise" style="font-size: 0.6rem; padding: 1px 4px">ET-CMS</span>}
+                      {c.source === "survey_lighthouse" && <span class="badge badge-muted" style="font-size: 0.6rem; padding: 1px 4px">Lighthouse</span>}
+                      <span class="text-xs text-muted">{relativeDate(c.completed_at)}</span>
+                    </div>
                   </div>
                 </div>
               ))}

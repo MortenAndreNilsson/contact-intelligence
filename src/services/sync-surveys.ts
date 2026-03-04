@@ -3,14 +3,18 @@
  *
  * Auth: uses gcloud access token for morten.andre.nilsson@visma.com
  * Sources:
- *   - questionnaire_responses (flat collection)
- *   - survey_responses/{slug}/responses (per-survey subcollections)
+ *   - Lighthouse View (test-disco-cm): questionnaire_responses + survey_responses/{slug}/responses
+ *   - ET-CMS (prod-etai-cm): published-surveys index → survey_responses/{surveyId}/responses
  */
 
 import { queryOne, run, generateId } from "../db/client.ts";
 
-const FIRESTORE_PROJECT = "test-disco-cm";
-const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT}/databases/(default)/documents`;
+const LIGHTHOUSE_PROJECT = "test-disco-cm";
+const ETCMS_PROJECT = "prod-etai-cm";
+
+function firestoreBase(project: string): string {
+  return `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents`;
+}
 
 async function getAccessToken(): Promise<string> {
   const proc = Bun.spawn(["gcloud.cmd", "auth", "print-access-token"], {
@@ -58,9 +62,10 @@ interface SurveyResponse {
   answers: string | null;
   completedAt: string | null;
   userAgent: string | null;
+  source: string;
 }
 
-function docToResponse(doc: any, slug?: string): SurveyResponse | null {
+function docToResponse(doc: any, slug?: string, source = "lighthouse-view"): SurveyResponse | null {
   if (!doc.fields) return null;
 
   const fields: Record<string, any> = {};
@@ -71,7 +76,7 @@ function docToResponse(doc: any, slug?: string): SurveyResponse | null {
   const docId = doc.name?.split("/").pop() || "";
 
   return {
-    _id: docId,
+    _id: source === "et-cms" ? `etcms-${docId}` : docId,
     slug: slug || fields.slug || null,
     email: fields.email || null,
     company: fields.company || fields.companyName || null,
@@ -82,33 +87,34 @@ function docToResponse(doc: any, slug?: string): SurveyResponse | null {
     answers: fields.answers ? JSON.stringify(fields.answers) : null,
     completedAt: fields.completedAt || fields.submittedAt || doc.createTime || null,
     userAgent: fields.userAgent || null,
+    source,
   };
 }
 
-async function fetchCollection(token: string, path: string): Promise<any[]> {
-  const url = `${FIRESTORE_BASE}/${path}`;
+async function fetchCollection(token: string, project: string, path: string): Promise<any[]> {
+  const url = `${firestoreBase(project)}/${path}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
   if (!res.ok) {
     if (res.status === 404) return [];
-    throw new Error(`Firestore API error for ${path}: ${res.status} ${res.statusText}`);
+    throw new Error(`Firestore API error for ${project}/${path}: ${res.status} ${res.statusText}`);
   }
 
   const data = await res.json();
   return data.documents || [];
 }
 
-async function fetchSurveySlugs(token: string): Promise<string[]> {
-  const docs = await fetchCollection(token, "survey_responses");
+async function fetchSurveySlugs(token: string, project: string): Promise<string[]> {
+  const docs = await fetchCollection(token, project, "survey_responses");
   return docs.map((d: any) => d.name?.split("/").pop()).filter(Boolean);
 }
 
 async function insertResponse(r: SurveyResponse): Promise<void> {
   await run(
-    `INSERT INTO survey_responses (_id, slug, email, company, role, overallScore, maturityLevel, dimensionScores, answers, completedAt, userAgent)
-     VALUES ($id, $slug, $email, $company, $role, $score, $level, $dims, $answers, $completedAt, $ua)`,
+    `INSERT INTO survey_responses (_id, slug, email, company, role, overallScore, maturityLevel, dimensionScores, answers, completedAt, userAgent, source)
+     VALUES ($id, $slug, $email, $company, $role, $score, $level, $dims, $answers, $completedAt, $ua, $source)`,
     {
       $id: r._id,
       $slug: r.slug,
@@ -121,6 +127,7 @@ async function insertResponse(r: SurveyResponse): Promise<void> {
       $answers: r.answers,
       $completedAt: r.completedAt,
       $ua: r.userAgent,
+      $source: r.source,
     }
   );
 }
@@ -131,17 +138,23 @@ export interface SyncResult {
   skipped: number;
 }
 
-export async function syncSurveys(): Promise<SyncResult> {
+export interface DualSyncResult {
+  lighthouse: SyncResult;
+  etcms: SyncResult;
+}
+
+/** Sync from Lighthouse View (test-disco-cm) — legacy source */
+export async function syncLighthouseSurveys(): Promise<SyncResult> {
   const token = await getAccessToken();
   let processed = 0;
   let created = 0;
   let skipped = 0;
 
   // 1. Fetch questionnaire_responses (flat collection)
-  const qrDocs = await fetchCollection(token, "questionnaire_responses");
+  const qrDocs = await fetchCollection(token, LIGHTHOUSE_PROJECT, "questionnaire_responses");
 
   for (const doc of qrDocs) {
-    const resp = docToResponse(doc);
+    const resp = docToResponse(doc, undefined, "lighthouse-view");
     if (!resp) { skipped++; continue; }
     processed++;
 
@@ -156,13 +169,13 @@ export async function syncSurveys(): Promise<SyncResult> {
   }
 
   // 2. Fetch survey_responses/{slug}/responses
-  const slugs = await fetchSurveySlugs(token);
+  const slugs = await fetchSurveySlugs(token, LIGHTHOUSE_PROJECT);
 
   for (const slug of slugs) {
-    const docs = await fetchCollection(token, `survey_responses/${slug}/responses`);
+    const docs = await fetchCollection(token, LIGHTHOUSE_PROJECT, `survey_responses/${slug}/responses`);
 
     for (const doc of docs) {
-      const resp = docToResponse(doc, slug);
+      const resp = docToResponse(doc, slug, "lighthouse-view");
       if (!resp) { skipped++; continue; }
       processed++;
 
@@ -180,9 +193,89 @@ export async function syncSurveys(): Promise<SyncResult> {
   // Log sync
   await run(
     `INSERT INTO sync_log (id, source, last_sync_at, records_processed, records_created, records_skipped, status)
-     VALUES ($id, 'survey_responses', CAST(current_timestamp AS VARCHAR), $processed, $created, $skipped, 'success')`,
+     VALUES ($id, 'survey_lighthouse', CAST(current_timestamp AS VARCHAR), $processed, $created, $skipped, 'success')`,
     { $id: generateId(), $processed: processed, $created: created, $skipped: skipped }
   );
 
   return { processed, created, skipped };
 }
+
+/** Sync from ET-CMS (prod-etai-cm) — primary source */
+export async function syncEtCmsSurveys(): Promise<SyncResult> {
+  const token = await getAccessToken();
+  let processed = 0;
+  let created = 0;
+  let skipped = 0;
+
+  // 1. Fetch published-surveys index to get slug→surveyId mapping
+  const publishedDocs = await fetchCollection(token, ETCMS_PROJECT, "published-surveys");
+
+  const slugMap = new Map<string, string>(); // surveyId → slug
+  for (const doc of publishedDocs) {
+    const docSlug = doc.name?.split("/").pop();
+    if (!doc.fields || !docSlug) continue;
+
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(doc.fields)) {
+      fields[k] = parseFirestoreValue(v);
+    }
+    // The published-surveys doc key IS the slug; surveyId is in the fields
+    const surveyId = fields.surveyId || fields.id;
+    if (surveyId) {
+      slugMap.set(surveyId, docSlug);
+    }
+  }
+
+  // 2. Fetch survey_responses for each survey
+  const surveyIds = await fetchSurveySlugs(token, ETCMS_PROJECT);
+
+  for (const surveyId of surveyIds) {
+    const slug = slugMap.get(surveyId) || surveyId;
+    const docs = await fetchCollection(token, ETCMS_PROJECT, `survey_responses/${surveyId}/responses`);
+
+    for (const doc of docs) {
+      const resp = docToResponse(doc, slug, "et-cms");
+      if (!resp) { skipped++; continue; }
+      processed++;
+
+      const existing = await queryOne<{ _id: string }>(
+        "SELECT _id FROM survey_responses WHERE _id = $id",
+        { $id: resp._id }
+      );
+      if (existing) { skipped++; continue; }
+
+      await insertResponse(resp);
+      created++;
+    }
+  }
+
+  // Log sync
+  await run(
+    `INSERT INTO sync_log (id, source, last_sync_at, records_processed, records_created, records_skipped, status)
+     VALUES ($id, 'survey_etcms', CAST(current_timestamp AS VARCHAR), $processed, $created, $skipped, 'success')`,
+    { $id: generateId(), $processed: processed, $created: created, $skipped: skipped }
+  );
+
+  return { processed, created, skipped };
+}
+
+/** Sync from both sources, returns combined results */
+export async function syncAllSurveys(): Promise<DualSyncResult> {
+  const lighthouse = await syncLighthouseSurveys();
+  const etcms = await syncEtCmsSurveys();
+
+  // Also log the combined result under the old source name for backwards compat with sync status
+  const totalProcessed = lighthouse.processed + etcms.processed;
+  const totalCreated = lighthouse.created + etcms.created;
+  const totalSkipped = lighthouse.skipped + etcms.skipped;
+  await run(
+    `INSERT INTO sync_log (id, source, last_sync_at, records_processed, records_created, records_skipped, status)
+     VALUES ($id, 'survey_responses', CAST(current_timestamp AS VARCHAR), $processed, $created, $skipped, 'success')`,
+    { $id: generateId(), $processed: totalProcessed, $created: totalCreated, $skipped: totalSkipped }
+  );
+
+  return { lighthouse, etcms };
+}
+
+/** @deprecated Use syncAllSurveys() instead */
+export const syncSurveys = syncAllSurveys;

@@ -96,7 +96,8 @@ CREATE TABLE IF NOT EXISTS survey_responses (
   dimensionScores VARCHAR,
   answers VARCHAR,
   completedAt VARCHAR,
-  userAgent VARCHAR
+  userAgent VARCHAR,
+  source VARCHAR DEFAULT 'lighthouse-view'
 );
 
 CREATE INDEX IF NOT EXISTS idx_contacts_company ON contacts(company_id);
