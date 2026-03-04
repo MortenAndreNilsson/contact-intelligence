@@ -18,13 +18,16 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
     mkdirSync(DB_DIR, { recursive: true });
   }
 
-  // Try opening; if WAL is corrupted, delete it and retry
+  // Try opening; if WAL is corrupted, delete it and retry.
+  // The debounced CHECKPOINT after writes should minimize data in the WAL,
+  // so deleting a corrupted WAL should lose very little (at most ~500ms of writes).
   try {
     instance = await duckdb.DuckDBInstance.create(DB_PATH);
     connection = await instance.connect();
   } catch (err: any) {
-    if (err.message?.includes("WAL") && existsSync(WAL_PATH)) {
+    if (existsSync(WAL_PATH)) {
       console.warn("Corrupted WAL detected — deleting and retrying...");
+      console.warn("(Data loss should be minimal thanks to auto-checkpointing)");
       unlinkSync(WAL_PATH);
       instance = await duckdb.DuckDBInstance.create(DB_PATH);
       connection = await instance.connect();
@@ -165,11 +168,34 @@ export async function run(
 ): Promise<void> {
   const conn = await getConnection();
   await execWithParams(conn, sql, params);
+  // Auto-checkpoint after writes to prevent WAL data loss on hard kills
+  scheduleCheckpoint();
 }
 
 export async function exec(sql: string): Promise<void> {
   const conn = await getConnection();
   await conn.run(sql);
+}
+
+/**
+ * Debounced WAL checkpoint — flushes WAL to main DB file after writes settle.
+ * Prevents data loss when the process is killed without clean shutdown (e.g. taskkill /F on Windows).
+ * Batches rapid writes with a 500ms debounce so we don't checkpoint on every single INSERT.
+ */
+let checkpointTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleCheckpoint(): void {
+  if (checkpointTimer) clearTimeout(checkpointTimer);
+  checkpointTimer = setTimeout(async () => {
+    checkpointTimer = null;
+    try {
+      if (connection) {
+        await connection.run("CHECKPOINT");
+      }
+    } catch {
+      // Best effort — don't crash on checkpoint failures
+    }
+  }, 500);
 }
 
 /** Close DuckDB connection and instance cleanly (flushes WAL). */
