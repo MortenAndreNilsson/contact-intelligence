@@ -512,18 +512,11 @@ export function Layout({ children, title }: { children: Child; title?: string })
           <span class="app-badge">ET</span>
           <span class="app-title">Contact Intelligence</span>
           <nav class="app-nav">
-            <button
-              class="nav-btn"
-              onclick="goBack()"
-              title="Go back"
-            >&larr; Back</button>
-            <button
-              class="nav-btn"
-              hx-get="/"
-              hx-target="#canvas"
-              hx-swap="innerHTML"
-              title="Dashboard"
-            >Dashboard</button>
+            <button class="nav-btn" hx-get="/" hx-target="#canvas" hx-swap="innerHTML">Dashboard</button>
+            <button class="nav-btn" hx-get="/companies" hx-target="#canvas" hx-swap="innerHTML">Companies</button>
+            <button class="nav-btn" hx-get="/contacts" hx-target="#canvas" hx-swap="innerHTML">Contacts</button>
+            <button class="nav-btn" hx-get="/analytics/articles" hx-target="#canvas" hx-swap="innerHTML">Articles</button>
+            <button class="nav-btn" hx-get="/analytics/surveys" hx-target="#canvas" hx-swap="innerHTML">Surveys</button>
           </nav>
         </header>
         <div class="app-body">
@@ -640,36 +633,6 @@ export function Layout({ children, title }: { children: Child; title?: string })
         </div>
         <script src="/static/htmx.min.js"></script>
         <script src="/static/alpine.min.js" defer></script>
-        <script>{`
-          window.__canvasHistory = ['/'];
-          window.__isBackNav = false;
-          document.body.addEventListener('htmx:afterSwap', function(e) {
-            if (window.__isBackNav) { window.__isBackNav = false; return; }
-            var target = e.detail.target;
-            if (target && target.id === 'canvas') {
-              var xhr = e.detail.xhr;
-              var url = xhr && xhr.responseURL ? new URL(xhr.responseURL).pathname : null;
-              if (!url) {
-                var cfg = e.detail.requestConfig;
-                url = cfg ? cfg.path : null;
-              }
-              var hist = window.__canvasHistory;
-              if (url && hist[hist.length - 1] !== url) {
-                hist.push(url);
-                if (hist.length > 50) hist.shift();
-              }
-            }
-          });
-          function goBack() {
-            var hist = window.__canvasHistory;
-            if (hist.length > 1) {
-              hist.pop();
-              var prev = hist[hist.length - 1];
-              window.__isBackNav = true;
-              htmx.ajax('GET', prev, {target: '#canvas', swap: 'innerHTML'});
-            }
-          }
-        `}</script>
       </body>
     </html>
   );
