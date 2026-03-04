@@ -462,6 +462,18 @@ export function Layout({ children, title }: { children: Child; title?: string })
           .editable-display:hover .edit-icon { opacity: 0.7; }
           .editable-input { background: var(--color-surface-elevated); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0.2rem 0.4rem; color: var(--color-text); font-family: var(--font-body); font-size: inherit; outline: none; min-width: 4rem; }
 
+          /* htmx loading states */
+          .htmx-request { opacity: 0.6; pointer-events: none; }
+          .htmx-request .btn-label { display: none; }
+          .htmx-request .btn-loading { display: inline; }
+          .btn-loading { display: none; }
+
+          @keyframes spin { to { transform: rotate(360deg); } }
+          .htmx-indicator { display: none; }
+          .htmx-request .htmx-indicator,
+          .htmx-request.htmx-indicator { display: inline-block; }
+          .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--color-text-muted); border-top-color: var(--visma-turquoise); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
+
           a { color: var(--color-accent); text-decoration: none; }
           a:hover { color: var(--color-accent-hover); }
 

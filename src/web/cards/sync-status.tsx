@@ -75,9 +75,10 @@ export function SyncStatusCard({
           hx-post="/sync/all"
           hx-target="#canvas"
           hx-swap="innerHTML"
-          disabled={!!running}
+          hx-disabled-elt="this"
         >
-          {running ? "Running..." : "Sync All"}
+          <span class="btn-label">Sync All</span>
+          <span class="btn-loading"><span class="spinner" style="margin-right: 0.4rem"></span> Running pipeline...</span>
         </button>
         <div class="text-xs text-muted" style="margin-top: 0.5rem">Events → Surveys → Materialize → Enrich</div>
       </div>
@@ -103,9 +104,10 @@ export function SyncStatusCard({
               hx-post="/sync/events"
               hx-target="#canvas"
               hx-swap="innerHTML"
-              disabled={running === "events"}
+              hx-disabled-elt="this"
             >
-              {running === "events" ? "Running..." : "Sync"}
+              <span class="btn-label">Sync</span>
+              <span class="btn-loading"><span class="spinner"></span></span>
             </button>
           </div>
         </div>
@@ -127,9 +129,10 @@ export function SyncStatusCard({
               hx-post="/sync/surveys"
               hx-target="#canvas"
               hx-swap="innerHTML"
-              disabled={running === "surveys"}
+              hx-disabled-elt="this"
             >
-              {running === "surveys" ? "Running..." : "Sync"}
+              <span class="btn-label">Sync</span>
+              <span class="btn-loading"><span class="spinner"></span></span>
             </button>
           </div>
         </div>
@@ -151,9 +154,10 @@ export function SyncStatusCard({
               hx-post="/sync/materialize"
               hx-target="#canvas"
               hx-swap="innerHTML"
-              disabled={running === "materialize"}
+              hx-disabled-elt="this"
             >
-              {running === "materialize" ? "Running..." : "Run"}
+              <span class="btn-label">Run</span>
+              <span class="btn-loading"><span class="spinner"></span></span>
             </button>
           </div>
         </div>
@@ -175,9 +179,10 @@ export function SyncStatusCard({
               hx-post="/sync/enrich"
               hx-target="#canvas"
               hx-swap="innerHTML"
-              disabled={running === "enrich"}
+              hx-disabled-elt="this"
             >
-              {running === "enrich" ? "Running..." : "Enrich"}
+              <span class="btn-label">Enrich</span>
+              <span class="btn-loading"><span class="spinner"></span></span>
             </button>
           </div>
         </div>
