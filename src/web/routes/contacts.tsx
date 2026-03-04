@@ -82,15 +82,38 @@ app.post("/contacts/:id/enrich", async (c) => {
     return c.html(<Layout>{msg}</Layout>);
   }
 
+  let feedbackHtml: any = null;
   try {
     const result = await enrichSingleContact(id, contact.email);
     if (result.success) {
       console.log(`Enriched ${contact.email}: ${result.info?.name} @ ${result.info?.organization}`);
+      feedbackHtml = (
+        <div class="card">
+          <div class="card-label mb-xs" style="color: var(--visma-turquoise)">Enrichment Result</div>
+          <div class="text-sm text-secondary">
+            {result.info?.name && <div>Name: <strong>{result.info.name}</strong></div>}
+            {result.info?.jobTitle && <div>Title: <strong>{result.info.jobTitle}</strong></div>}
+            {result.info?.organization && <div>Organization: <strong>{result.info.organization}</strong>{result.companyCreated ? " (new)" : ""}</div>}
+            {result.info?.country && <div>Country: {result.info.country}</div>}
+            {!result.info?.name && !result.info?.jobTitle && !result.info?.organization && <div>No new data found.</div>}
+          </div>
+        </div>
+      );
     } else {
       console.log(`No info found for ${contact.email}`);
+      feedbackHtml = (
+        <div class="card">
+          <div class="text-sm text-muted">No information found for {contact.email} in Discovery Engine.</div>
+        </div>
+      );
     }
   } catch (err: any) {
     console.error(`Enrich failed for ${contact.email}:`, err.message);
+    feedbackHtml = (
+      <div class="card">
+        <div class="text-sm" style="color: var(--visma-coral)">Enrichment failed: {err.message}</div>
+      </div>
+    );
   }
 
   // Re-fetch and render the updated profile
@@ -102,7 +125,12 @@ app.post("/contacts/:id/enrich", async (c) => {
   }
 
   const activities = await listActivities({ contactId: id, limit: 20 });
-  const content = <ContactProfileCard contact={updated} activities={activities} />;
+  const content = (
+    <div>
+      {feedbackHtml}
+      <ContactProfileCard contact={updated} activities={activities} />
+    </div>
+  );
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
@@ -118,7 +146,7 @@ app.patch("/contacts/:id", async (c) => {
 
   const body = await c.req.parseBody();
   const fields: Record<string, unknown> = {};
-  for (const key of ["job_title", "notes", "name"]) {
+  for (const key of ["job_title", "notes", "name", "company_id"]) {
     if (key in body) {
       fields[key] = String(body[key]).trim() || null;
     }

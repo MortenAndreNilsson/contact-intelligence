@@ -89,7 +89,36 @@ export async function updateContact(id: string, fields: Partial<Pick<Contact, "n
 
   if (sets.length === 0) return;
   sets.push("updated_at = CAST(current_timestamp AS VARCHAR)");
+
+  // DuckDB FK workaround: detach activities and list_members before update, then reattach
+  const activityIds = await queryAll<{ id: string }>(
+    `SELECT id FROM activities WHERE contact_id = $id`,
+    { $id: id }
+  );
+  const listMemberIds = await queryAll<{ list_id: string }>(
+    `SELECT list_id FROM list_members WHERE contact_id = $id`,
+    { $id: id }
+  );
+
+  if (activityIds.length > 0) {
+    await run(`UPDATE activities SET contact_id = NULL WHERE contact_id = $id`, { $id: id });
+  }
+  if (listMemberIds.length > 0) {
+    await run(`DELETE FROM list_members WHERE contact_id = $id`, { $id: id });
+  }
+
   await run(`UPDATE contacts SET ${sets.join(", ")} WHERE id = $id`, params);
+
+  // Reattach
+  for (const a of activityIds) {
+    await run(`UPDATE activities SET contact_id = $cid WHERE id = $aid`, { $cid: id, $aid: a.id });
+  }
+  for (const lm of listMemberIds) {
+    await run(
+      `INSERT INTO list_members (list_id, contact_id) VALUES ($lid, $cid)`,
+      { $lid: lm.list_id, $cid: id }
+    );
+  }
 }
 
 export async function deleteContact(id: string): Promise<void> {

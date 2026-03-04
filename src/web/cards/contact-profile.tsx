@@ -130,17 +130,17 @@ export function ContactProfileCard({
             )}
           </div>
           <div class="flex gap-xs items-center">
-            {(!contact.name || !contact.job_title) && (
-              <button
-                class="chat-submit"
-                style="padding: 0.35rem 0.7rem; font-size: 0.7rem"
-                hx-post={`/contacts/${contact.id}/enrich`}
-                hx-target="#canvas"
-                hx-swap="innerHTML"
-              >
-                Lookup
-              </button>
-            )}
+            <button
+              class="period-btn"
+              style="font-size: 0.7rem; padding: 0.3rem 0.6rem"
+              hx-post={`/contacts/${contact.id}/enrich`}
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+            >
+              <span class="btn-label">Re-enrich</span>
+              <span class="btn-loading"><span class="spinner"></span></span>
+            </button>
             {consentBadge(contact.consent_status)}
           </div>
         </div>
