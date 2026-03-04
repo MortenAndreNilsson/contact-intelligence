@@ -43,7 +43,9 @@ export async function listActivities(opts?: {
     FROM activities a
     LEFT JOIN contacts ct ON a.contact_id = ct.id
     LEFT JOIN companies comp ON a.company_id = comp.id
-    WHERE 1=1`;
+    WHERE 1=1
+    AND NOT (a.activity_type = 'page_view' AND a.title LIKE '/%' AND length(a.title) < 30)
+    AND NOT (a.title LIKE '/view/%')`;
 
   const params: Record<string, unknown> = {};
 
