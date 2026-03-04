@@ -6,19 +6,39 @@ export function DashboardStatsCard({ stats }: { stats: DashboardStats }) {
   return (
     <div>
       <div class="stat-grid">
-        <div class="stat-box">
+        <div
+          class="stat-box card-clickable"
+          hx-get="/companies"
+          hx-target="#canvas"
+          hx-swap="innerHTML"
+        >
           <div class="stat-value">{stats.totalCompanies}</div>
           <div class="stat-label">Companies</div>
         </div>
-        <div class="stat-box">
+        <div
+          class="stat-box card-clickable"
+          hx-get="/contacts"
+          hx-target="#canvas"
+          hx-swap="innerHTML"
+        >
           <div class="stat-value">{stats.totalContacts}</div>
           <div class="stat-label">Contacts</div>
         </div>
-        <div class="stat-box">
+        <div
+          class="stat-box card-clickable"
+          hx-get="/analytics/articles"
+          hx-target="#canvas"
+          hx-swap="innerHTML"
+        >
           <div class="stat-value">{stats.totalActivities}</div>
           <div class="stat-label">Activities</div>
         </div>
-        <div class="stat-box">
+        <div
+          class="stat-box card-clickable"
+          hx-get="/analytics/surveys"
+          hx-target="#canvas"
+          hx-swap="innerHTML"
+        >
           <div class="stat-value">{stats.avgScore ? stats.avgScore.toFixed(1) : "—"}</div>
           <div class="stat-label">Avg Score</div>
         </div>

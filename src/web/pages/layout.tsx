@@ -88,11 +88,29 @@ export function Layout({ children, title }: { children: Child; title?: string })
             color: var(--color-text-secondary);
           }
 
-          .app-status {
+          .app-nav {
+            display: flex;
+            gap: 0.25rem;
             margin-left: auto;
+          }
+
+          .nav-btn {
             font-family: var(--font-mono);
             font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.3rem 0.6rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            background: transparent;
             color: var(--color-text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+          }
+
+          .nav-btn:hover {
+            border-color: var(--color-accent);
+            color: var(--color-text-secondary);
           }
 
           .app-body {
@@ -353,6 +371,12 @@ export function Layout({ children, title }: { children: Child; title?: string })
             border-radius: var(--radius-lg);
             padding: var(--space-sm);
             text-align: center;
+            transition: border-color 0.15s, background 0.15s;
+          }
+
+          .stat-box.card-clickable:hover {
+            border-color: var(--color-accent);
+            background: var(--color-surface-hover);
           }
 
           .stat-value {
@@ -487,7 +511,20 @@ export function Layout({ children, title }: { children: Child; title?: string })
         <header class="app-header">
           <span class="app-badge">ET</span>
           <span class="app-title">Contact Intelligence</span>
-          <span class="app-status">Local</span>
+          <nav class="app-nav">
+            <button
+              class="nav-btn"
+              onclick="goBack()"
+              title="Go back"
+            >&larr; Back</button>
+            <button
+              class="nav-btn"
+              hx-get="/"
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+              title="Dashboard"
+            >Dashboard</button>
+          </nav>
         </header>
         <div class="app-body">
           <div class="chat-panel">
@@ -603,6 +640,27 @@ export function Layout({ children, title }: { children: Child; title?: string })
         </div>
         <script src="/static/htmx.min.js"></script>
         <script src="/static/alpine.min.js" defer></script>
+        <script>{`
+          window.__canvasHistory = ['/'];
+          document.addEventListener('htmx:afterRequest', function(e) {
+            if (e.detail.target && e.detail.target.id === 'canvas' && e.detail.requestConfig) {
+              var path = e.detail.requestConfig.path;
+              var hist = window.__canvasHistory;
+              if (path && hist[hist.length - 1] !== path) {
+                hist.push(path);
+                if (hist.length > 50) hist.shift();
+              }
+            }
+          });
+          function goBack() {
+            var hist = window.__canvasHistory;
+            if (hist.length > 1) {
+              hist.pop();
+              var prev = hist[hist.length - 1];
+              htmx.ajax('GET', prev, {target: '#canvas', swap: 'innerHTML'});
+            }
+          }
+        `}</script>
       </body>
     </html>
   );

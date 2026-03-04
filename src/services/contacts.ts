@@ -25,7 +25,9 @@ export async function getContact(id: string): Promise<ContactWithDetails | null>
   const row = await queryOne<ContactRow & { company_name: string | null; activity_count: number }>(
     `SELECT ct.*,
        comp.name AS company_name,
-       (SELECT COUNT(*) FROM activities WHERE contact_id = ct.id) AS activity_count
+       (SELECT COUNT(*) FROM activities WHERE contact_id = ct.id
+        AND NOT (activity_type = 'page_view' AND title LIKE '/%' AND length(title) < 30)
+        AND NOT (title LIKE '/view/%')) AS activity_count
      FROM contacts ct
      LEFT JOIN companies comp ON ct.company_id = comp.id
      WHERE ct.id = $id`,
@@ -38,7 +40,9 @@ export async function getContact(id: string): Promise<ContactWithDetails | null>
 export async function listContacts(opts?: { companyId?: string; query?: string; limit?: number }): Promise<ContactWithDetails[]> {
   let sql = `SELECT ct.*,
     comp.name AS company_name,
-    (SELECT COUNT(*) FROM activities WHERE contact_id = ct.id) AS activity_count
+    (SELECT COUNT(*) FROM activities WHERE contact_id = ct.id
+     AND NOT (activity_type = 'page_view' AND title LIKE '/%' AND length(title) < 30)
+     AND NOT (title LIKE '/view/%')) AS activity_count
     FROM contacts ct
     LEFT JOIN companies comp ON ct.company_id = comp.id
     WHERE 1=1`;
