@@ -642,12 +642,20 @@ export function Layout({ children, title }: { children: Child; title?: string })
         <script src="/static/alpine.min.js" defer></script>
         <script>{`
           window.__canvasHistory = ['/'];
-          document.addEventListener('htmx:afterRequest', function(e) {
-            if (e.detail.target && e.detail.target.id === 'canvas' && e.detail.requestConfig) {
-              var path = e.detail.requestConfig.path;
+          window.__isBackNav = false;
+          document.body.addEventListener('htmx:afterSwap', function(e) {
+            if (window.__isBackNav) { window.__isBackNav = false; return; }
+            var target = e.detail.target;
+            if (target && target.id === 'canvas') {
+              var xhr = e.detail.xhr;
+              var url = xhr && xhr.responseURL ? new URL(xhr.responseURL).pathname : null;
+              if (!url) {
+                var cfg = e.detail.requestConfig;
+                url = cfg ? cfg.path : null;
+              }
               var hist = window.__canvasHistory;
-              if (path && hist[hist.length - 1] !== path) {
-                hist.push(path);
+              if (url && hist[hist.length - 1] !== url) {
+                hist.push(url);
                 if (hist.length > 50) hist.shift();
               }
             }
@@ -657,6 +665,7 @@ export function Layout({ children, title }: { children: Child; title?: string })
             if (hist.length > 1) {
               hist.pop();
               var prev = hist[hist.length - 1];
+              window.__isBackNav = true;
               htmx.ajax('GET', prev, {target: '#canvas', swap: 'innerHTML'});
             }
           }
