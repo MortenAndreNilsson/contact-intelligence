@@ -15,7 +15,7 @@ import {
 import { listContacts, getContactByEmail } from "../../services/contacts.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
 import { researchCompany } from "../../services/company-research.ts";
-import { updateCompany } from "../../services/companies.ts";
+import { updateCompany, getCompany } from "../../services/companies.ts";
 import { queryAll } from "../../db/client.ts";
 import type { FilterCriteria } from "../../types/index.ts";
 
@@ -248,13 +248,21 @@ app.post("/lists/:id/research", async (c) => {
 
   for (const name of companyNames) {
     try {
-      const description = await researchCompany(name);
+      const result = await researchCompany(name);
       const rows = await queryAll<{ id: string }>(
         `SELECT id FROM companies WHERE name ILIKE $name LIMIT 1`,
         { $name: `%${name}%` }
       );
-      if (rows.length > 0 && description) {
-        await updateCompany(rows[0]!.id, { description });
+      if (rows.length > 0 && result) {
+        const company = await getCompany(rows[0]!.id);
+        const fields: Record<string, unknown> = {};
+        if (result.description) fields.description = result.description;
+        if (result.industry && !company?.industry) fields.industry = result.industry;
+        if (result.country && !company?.country) fields.country = result.country;
+        if (result.size_bucket && !company?.size_bucket) fields.size_bucket = result.size_bucket;
+        if (Object.keys(fields).length > 0) {
+          await updateCompany(rows[0]!.id, fields);
+        }
         researched++;
       }
     } catch {

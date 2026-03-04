@@ -23,9 +23,9 @@ interface UnenrichedContact {
 
 /**
  * Find or create a company by organization name.
- * Returns the company ID.
+ * Returns the company ID. When creating, passes country if available.
  */
-async function resolveCompany(orgName: string): Promise<{ id: string; created: boolean }> {
+async function resolveCompany(orgName: string, country?: string | null): Promise<{ id: string; created: boolean }> {
   // Check if a company with this exact name already exists
   const existing = await queryOne<{ id: string }>(
     `SELECT id FROM companies WHERE LOWER(name) = LOWER($name)`,
@@ -36,8 +36,8 @@ async function resolveCompany(orgName: string): Promise<{ id: string; created: b
     return { id: existing.id, created: false };
   }
 
-  // Create new company with name only (no domain — this is a subsidiary)
-  const company = await createCompany(orgName);
+  // Create new company with name + country from Discovery Engine
+  const company = await createCompany(orgName, undefined, undefined, undefined, country ?? undefined);
   return { id: company.id, created: true };
 }
 
@@ -63,10 +63,10 @@ export async function enrichSingleContact(
   if (info.name) { sets.push("name = $name"); params.$name = info.name; }
   if (info.jobTitle) { sets.push("job_title = $jobTitle"); params.$jobTitle = info.jobTitle; }
 
-  // Resolve company if org found
+  // Resolve company if org found — pass country from Discovery Engine
   let companyCreated = false;
   if (info.organization) {
-    const company = await resolveCompany(info.organization);
+    const company = await resolveCompany(info.organization, info.country);
     sets.push("company_id = $companyId");
     params.$companyId = company.id;
     companyCreated = company.created;

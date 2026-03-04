@@ -380,9 +380,16 @@ app.post("/chat", async (c) => {
     }
 
     try {
-      const description = await researchCompany(target.name, target.domain);
-      if (description) {
-        await updateCompany(target.id, { description });
+      const result = await researchCompany(target.name, target.domain);
+      if (result) {
+        const fields: Record<string, unknown> = {};
+        if (result.description) fields.description = result.description;
+        if (result.industry && !target.industry) fields.industry = result.industry;
+        if (result.country && !target.country) fields.country = result.country;
+        if (result.size_bucket && !target.size_bucket) fields.size_bucket = result.size_bucket;
+        if (Object.keys(fields).length > 0) {
+          await updateCompany(target.id, fields);
+        }
       }
 
       const company = await getCompany(target.id);

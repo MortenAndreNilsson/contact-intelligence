@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { Layout } from "../pages/layout.tsx";
 import { CompanyProfileCard } from "../cards/company-profile.tsx";
-import { listCompanies, getCompany, updateCompany } from "../../services/companies.ts";
+import { listCompanies, getCompany, updateCompany, createCompany } from "../../services/companies.ts";
 import { listContacts } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
 import type { CompanyWithStats } from "../../types/index.ts";
@@ -74,6 +74,26 @@ app.get("/companies/:id", async (c) => {
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
+});
+
+// POST /companies — create a new company
+app.post("/companies", async (c) => {
+  const body = await c.req.parseBody();
+  const name = String(body.name || "").trim();
+  if (!name) {
+    return c.html(<div class="text-sm" style="color: var(--visma-coral)">Company name is required.</div>, 400);
+  }
+  const company = await createCompany(
+    name,
+    String(body.domain || "").trim() || undefined,
+    String(body.industry || "").trim() || undefined,
+    String(body.size_bucket || "").trim() || undefined,
+    String(body.country || "").trim() || undefined,
+  );
+  const contacts = await listContacts({ companyId: company.id });
+  const activities = await listActivities({ companyId: company.id, limit: 20 });
+  const full = await getCompany(company.id);
+  return c.html(<CompanyProfileCard company={full!} contacts={contacts} activities={activities} />);
 });
 
 // PATCH /companies/:id — update company fields inline
