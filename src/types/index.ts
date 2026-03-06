@@ -212,6 +212,42 @@ export interface ListMember {
   added_at: string | null;
 }
 
+// --- LLM intent classification types ---
+
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  content: string;
+  intent?: string;
+  entityId?: string;
+  entityName?: string;
+  entityType?: "company" | "contact" | "article" | "list";
+}
+
+export interface QueryUnderstanding {
+  intent: string;
+  entities: {
+    name?: string;
+    email?: string;
+    domain?: string;
+    industry?: string;
+    country?: string;
+    days?: number;
+    limit?: number;
+    listName?: string;
+    slug?: string;
+  };
+  confidence: number;
+  resolvedFromContext?: boolean;
+}
+
+export interface DispatchResult {
+  html: any;
+  summary: string;
+  entityId?: string;
+  entityName?: string;
+  entityType?: "company" | "contact" | "article" | "list";
+}
+
 export interface CompanyEngagement {
   company_id: string;
   company_name: string;
