@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS contacts (
   name VARCHAR,
   job_title VARCHAR,
   source VARCHAR NOT NULL,
+  enrich_skip BOOLEAN DEFAULT FALSE,
   consent_status VARCHAR DEFAULT 'unknown',
   consent_date VARCHAR,
   tags VARCHAR DEFAULT '[]',

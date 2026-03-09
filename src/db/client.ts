@@ -51,6 +51,7 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
   const migrations = [
     "ALTER TABLE companies ADD COLUMN IF NOT EXISTS description VARCHAR",
     "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'lighthouse-view'",
+    "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS enrich_skip BOOLEAN DEFAULT FALSE",
   ];
   for (const m of migrations) {
     await connection.run(m);

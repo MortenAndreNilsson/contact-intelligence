@@ -117,7 +117,8 @@ export async function enrichContacts(): Promise<EnrichResult> {
   const unenriched = await queryAll<UnenrichedContact>(
     `SELECT id, email, name, job_title, company_id
      FROM contacts
-     WHERE name IS NULL OR job_title IS NULL
+     WHERE (name IS NULL OR job_title IS NULL)
+       AND (enrich_skip IS NULL OR enrich_skip = FALSE)
      ORDER BY updated_at ASC`
   );
 
