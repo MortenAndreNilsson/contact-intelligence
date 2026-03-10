@@ -10,6 +10,7 @@ export interface CompanyResearchResult {
   industry: string | null;
   country: string | null;
   size_bucket: string | null;
+  tags: string[];
 }
 
 export async function researchCompany(name: string, domain?: string | null): Promise<CompanyResearchResult | null> {
@@ -25,12 +26,14 @@ export async function researchCompany(name: string, domain?: string | null): Pro
   "description": "3-4 sentence factual summary of what the company does, key products/services, and market position",
   "industry": "One of: Software, IT Services, Consulting, Financial Services, Manufacturing, Healthcare, Education, Government, Retail, Media, Energy, Telecommunications, Real Estate, Transportation, Agriculture, or Other",
   "country": "Country where headquarters is located, e.g. 'Norway', 'Denmark', 'Sweden', 'Finland', 'Netherlands', 'Germany', 'United Kingdom', etc.",
-  "size_bucket": "One of: 1-10, 11-50, 51-200, 201-1000, 1001-5000, 5001-10000, 10000+"
+  "size_bucket": "One of: 1-10, 11-50, 51-200, 201-1000, 1001-5000, 5001-10000, 10000+",
+  "tags": ["3-5 short lowercase tags describing the company's domain, products, or market, e.g. 'erp', 'payroll', 'saas', 'nordic', 'fintech', 'accounting', 'hr-tech', 'logistics'"]
 }
 
 Rules:
 - Be factual and concise. No hype, no superlatives.
 - If you are not confident about a field, set it to null rather than guessing.
+- Tags should be specific and useful for filtering/grouping. Use lowercase, hyphenate multi-word tags.
 - For Visma subsidiaries, the country should be where THAT subsidiary operates, not Visma HQ.
 - Return ONLY the JSON object, no markdown fences, no explanation.`;
 
@@ -64,6 +67,7 @@ Rules:
       industry: parsed.industry || null,
       country: parsed.country || null,
       size_bucket: parsed.size_bucket || null,
+      tags: Array.isArray(parsed.tags) ? parsed.tags.map((t: string) => String(t).toLowerCase().trim()).filter(Boolean) : [],
     };
   } catch {
     // Fallback: if JSON parse fails, treat entire text as description
@@ -73,6 +77,7 @@ Rules:
       industry: null,
       country: null,
       size_bucket: null,
+      tags: [],
     };
   }
 }

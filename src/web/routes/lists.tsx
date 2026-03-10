@@ -260,6 +260,11 @@ app.post("/lists/:id/research", async (c) => {
         if (result.industry && !company?.industry) fields.industry = result.industry;
         if (result.country && !company?.country) fields.country = result.country;
         if (result.size_bucket && !company?.size_bucket) fields.size_bucket = result.size_bucket;
+        if (result.tags.length > 0) {
+          const existing = company?.tags || [];
+          const merged = [...new Set([...existing, ...result.tags])];
+          fields.tags = merged;
+        }
         if (Object.keys(fields).length > 0) {
           await updateCompany(rows[0]!.id, fields);
         }

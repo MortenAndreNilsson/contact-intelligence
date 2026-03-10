@@ -339,6 +339,11 @@ async function dispatchIntent(understanding: QueryUnderstanding): Promise<Dispat
           if (result.industry && !target.industry) fields.industry = result.industry;
           if (result.country && !target.country) fields.country = result.country;
           if (result.size_bucket && !target.size_bucket) fields.size_bucket = result.size_bucket;
+          if (result.tags.length > 0) {
+            const existing = target.tags || [];
+            const merged = [...new Set([...existing, ...result.tags])];
+            fields.tags = merged;
+          }
           if (Object.keys(fields).length > 0) {
             await updateCompany(target.id, fields);
           }
