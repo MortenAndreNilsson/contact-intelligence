@@ -226,11 +226,8 @@ export async function syncEtCmsSurveys(): Promise<SyncResult> {
     }
   }
 
-  // 2. Fetch survey_responses for each survey
-  const surveyIds = await fetchSurveySlugs(token, ETCMS_PROJECT);
-
-  for (const surveyId of surveyIds) {
-    const slug = slugMap.get(surveyId) || surveyId;
+  // 2. Fetch survey_responses for each survey (use IDs from published-surveys, not parent collection)
+  for (const [surveyId, slug] of slugMap) {
     const docs = await fetchCollection(token, ETCMS_PROJECT, `survey_responses/${surveyId}/responses`);
 
     for (const doc of docs) {
