@@ -1,33 +1,23 @@
 /**
- * LM Studio integration for intent classification.
- * Replaces regex-based normalizeMessage() with LLM-powered understanding.
- * Falls back to regex if LM Studio is unavailable.
+ * LLM-powered query understanding, filter parsing, and entity briefings.
+ * Uses the LLM provider abstraction (default: LM Studio for PII privacy).
+ * Falls back to regex if provider is unavailable.
  */
 
-import type { QueryUnderstanding, ConversationTurn } from "../types/index.ts";
+import type { QueryUnderstanding, ConversationTurn, FilterCriteria } from "../types/index.ts";
+import { getProvider } from "./llm-provider.ts";
 
-const baseUrl = Bun.env.LMSTUDIO_BASE_URL || "http://localhost:1234";
-const defaultModel = Bun.env.LMSTUDIO_MODEL || "gemma-3-4b-it";
+// --- Convenience wrapper ---
 
-// --- Availability check with 30s cache ---
+async function isAvailable(): Promise<boolean> {
+  return getProvider().isAvailable();
+}
 
-let availableCache: { value: boolean; expires: number } | null = null;
-
-export async function isAvailable(): Promise<boolean> {
-  if (availableCache && Date.now() < availableCache.expires) {
-    return availableCache.value;
-  }
-  try {
-    const res = await fetch(`${baseUrl}/v1/models`, {
-      signal: AbortSignal.timeout(1000),
-    });
-    const ok = res.ok;
-    availableCache = { value: ok, expires: Date.now() + 30_000 };
-    return ok;
-  } catch {
-    availableCache = { value: false, expires: Date.now() + 30_000 };
-    return false;
-  }
+async function complete(
+  messages: { role: string; content: string }[],
+  options?: { maxTokens?: number; temperature?: number; jsonSchema?: object; timeout?: number },
+): Promise<string | null> {
+  return getProvider().complete({ messages, ...options });
 }
 
 // --- Conversation history (in-memory, per session) ---
@@ -65,6 +55,34 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+
+// --- Intent classification JSON schema ---
+
+const INTENT_SCHEMA = {
+  type: "object",
+  properties: {
+    intent: { type: "string" },
+    entities: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        email: { type: "string" },
+        domain: { type: "string" },
+        industry: { type: "string" },
+        country: { type: "string" },
+        days: { type: "number" },
+        limit: { type: "number" },
+        listName: { type: "string" },
+        slug: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    confidence: { type: "number" },
+    resolvedFromContext: { type: "boolean" },
+  },
+  required: ["intent", "entities", "confidence", "resolvedFromContext"],
+  additionalProperties: false,
+};
 
 // --- System prompt for intent classification ---
 
@@ -115,70 +133,7 @@ IMPORTANT: days and limit MUST be numbers, not strings. Only include entity fiel
 Respond with ONLY a JSON object:
 {"intent": "...", "entities": {...}, "confidence": 0.0-1.0, "resolvedFromContext": false}`;
 
-// --- LM Studio call ---
-
-async function callLMStudio(
-  messages: { role: string; content: string }[],
-): Promise<string | null> {
-  try {
-    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: defaultModel,
-        messages,
-        temperature: 0.1,
-        max_tokens: 200,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "intent_classification",
-            strict: true,
-            schema: {
-              type: "object",
-              properties: {
-                intent: { type: "string" },
-                entities: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    email: { type: "string" },
-                    domain: { type: "string" },
-                    industry: { type: "string" },
-                    country: { type: "string" },
-                    days: { type: "number" },
-                    limit: { type: "number" },
-                    listName: { type: "string" },
-                    slug: { type: "string" },
-                  },
-                  additionalProperties: false,
-                },
-                confidence: { type: "number" },
-                resolvedFromContext: { type: "boolean" },
-              },
-              required: ["intent", "entities", "confidence", "resolvedFromContext"],
-              additionalProperties: false,
-            },
-          },
-        },
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!res.ok) {
-      console.warn(`LM Studio error (${res.status})`);
-      return null;
-    }
-
-    const data: any = await res.json();
-    return data?.choices?.[0]?.message?.content?.trim() ?? null;
-  } catch (err) {
-    console.warn("LM Studio call failed:", (err as Error).message);
-    return null;
-  }
-}
-
-// --- Main entry point ---
+// --- Main entry point: intent classification ---
 
 export async function understandQuery(
   message: string,
@@ -188,12 +143,10 @@ export async function understandQuery(
     return regexFallback(message);
   }
 
-  // Build conversation context from recent history
   const contextMessages: { role: string; content: string }[] = [
     { role: "system", content: SYSTEM_PROMPT },
   ];
 
-  // Add last few turns for context resolution
   const recentHistory = history.slice(-6);
   for (const turn of recentHistory) {
     contextMessages.push({
@@ -207,7 +160,12 @@ export async function understandQuery(
 
   contextMessages.push({ role: "user", content: message });
 
-  const raw = await callLMStudio(contextMessages);
+  const raw = await complete(contextMessages, {
+    maxTokens: 200,
+    temperature: 0.1,
+    jsonSchema: INTENT_SCHEMA,
+    timeout: 10000,
+  });
   if (!raw) {
     return regexFallback(message);
   }
@@ -229,7 +187,6 @@ export async function understandQuery(
       parsed.intent = "unknown";
     }
 
-    // Coerce days/limit to numbers if the model returned strings
     const entities = parsed.entities || {};
     if (entities.days !== undefined) {
       const n = Number(entities.days);
@@ -247,7 +204,7 @@ export async function understandQuery(
       resolvedFromContext: parsed.resolvedFromContext === true,
     };
   } catch {
-    console.warn("Failed to parse LM Studio JSON response:", raw);
+    console.warn("Failed to parse LLM JSON response:", raw);
     return regexFallback(message);
   }
 }
@@ -271,18 +228,21 @@ Available filter fields:
 Only include fields that are clearly mentioned. Respond with ONLY a JSON object containing the matching fields.
 Example: {"industry": "software", "min_score": 3, "read_section": "explore"}`;
 
-export async function parseListFilter(input: string): Promise<import("../types/index.ts").FilterCriteria | null> {
+export async function parseListFilter(input: string): Promise<FilterCriteria | null> {
   if (!(await isAvailable())) return null;
 
-  const raw = await callLMStudioFreeform([
-    { role: "system", content: FILTER_SYSTEM_PROMPT },
-    { role: "user", content: input },
-  ]);
+  const raw = await complete(
+    [
+      { role: "system", content: FILTER_SYSTEM_PROMPT },
+      { role: "user", content: input },
+    ],
+    { maxTokens: 300, temperature: 0.3, timeout: 15000 },
+  );
   if (!raw) return null;
 
   try {
     const parsed = JSON.parse(raw);
-    const criteria: import("../types/index.ts").FilterCriteria = {};
+    const criteria: FilterCriteria = {};
     if (typeof parsed.industry === "string") criteria.industry = parsed.industry;
     if (typeof parsed.country === "string") criteria.country = parsed.country;
     if (typeof parsed.tag === "string") criteria.tag = parsed.tag;
@@ -295,13 +255,13 @@ export async function parseListFilter(input: string): Promise<import("../types/i
     if (typeof parsed.active_days === "number") criteria.active_days = parsed.active_days;
     return Object.keys(criteria).length > 0 ? criteria : null;
   } catch {
-    console.warn("Failed to parse filter JSON from LM Studio:", raw);
+    console.warn("Failed to parse filter JSON from LLM:", raw);
     return null;
   }
 }
 
 /** Generate a human-readable description from filter criteria */
-export function generateListDescription(criteria: import("../types/index.ts").FilterCriteria): string {
+export function generateListDescription(criteria: FilterCriteria): string {
   const parts: string[] = [];
   if (criteria.industry) parts.push(`in the ${criteria.industry} industry`);
   if (criteria.country) parts.push(`based in ${criteria.country}`);
@@ -331,14 +291,16 @@ export async function summarizeActivities(
     .map((a) => `${a.activity_type}: ${a.title || "(no title)"} (${a.occurred_at.slice(0, 10)})`)
     .join("\n");
 
-  const raw = await callLMStudioFreeform([
-    {
-      role: "system",
-      content: "Summarize this CRM activity for " + entityName + " into 1-2 factual sentences. No hype, no superlatives. Focus on engagement patterns and what they are interested in.",
-    },
-    { role: "user", content: activityText },
-  ]);
-  return raw?.trim() || null;
+  return complete(
+    [
+      {
+        role: "system",
+        content: "Summarize this CRM activity for " + entityName + " into 1-2 factual sentences. No hype, no superlatives. Focus on engagement patterns and what they are interested in.",
+      },
+      { role: "user", content: activityText },
+    ],
+    { maxTokens: 300, temperature: 0.3, timeout: 15000 },
+  );
 }
 
 /** Generate a full structured briefing for a company or contact */
@@ -363,10 +325,11 @@ export async function generateBriefing(context: {
     context.contacts ? `Contacts: ${context.contacts}` : "",
   ].filter(Boolean).join("\n\n");
 
-  const raw = await callLMStudioFreeform([
-    {
-      role: "system",
-      content: `You are a CRM briefing generator. Write a structured briefing for ${context.entityType} "${context.entityName}".
+  return complete(
+    [
+      {
+        role: "system",
+        content: `You are a CRM briefing generator. Write a structured briefing for ${context.entityType} "${context.entityName}".
 
 Format with these sections (use ## headings):
 ## Engagement Summary
@@ -379,36 +342,11 @@ ${context.entityType === "company" ? "## Key Contacts\nWho is most active.\n" : 
 One suggested next action.
 
 Be factual, concise, no hype. Northern European professional tone.`,
-    },
-    { role: "user", content: sections },
-  ], 800);
-  return raw?.trim() || null;
-}
-
-/** Generic LM Studio call without JSON schema (for freeform text) */
-async function callLMStudioFreeform(
-  messages: { role: string; content: string }[],
-  maxTokens: number = 300,
-): Promise<string | null> {
-  try {
-    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: defaultModel,
-        messages,
-        temperature: 0.3,
-        max_tokens: maxTokens,
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) return null;
-    const data: any = await res.json();
-    return data?.choices?.[0]?.message?.content?.trim() ?? null;
-  } catch (err) {
-    console.warn("LM Studio freeform call failed:", (err as Error).message);
-    return null;
-  }
+      },
+      { role: "user", content: sections },
+    ],
+    { maxTokens: 800, temperature: 0.3, timeout: 15000 },
+  );
 }
 
 // --- Regex fallback (extracted from original normalizeMessage) ---
@@ -519,43 +457,21 @@ export function regexFallback(msg: string): QueryUnderstanding {
     }
   }
 
-  // Exact slash commands that might come through
+  // Exact slash commands
   if (slashStripped === "dashboard" || slashStripped === "stats" || slashStripped === "home") {
     return { intent: "dashboard", entities: {}, confidence: 1.0 };
   }
-  if (slashStripped === "companies") {
-    return { intent: "companies", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "contacts") {
-    return { intent: "contacts", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "articles") {
-    return { intent: "articles", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "views") {
-    return { intent: "views", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "surveys") {
-    return { intent: "surveys", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "engagement") {
-    return { intent: "engagement", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "lists") {
-    return { intent: "lists", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "enrich") {
-    return { intent: "enrich", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "sync") {
-    return { intent: "sync", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "sync status") {
-    return { intent: "sync_status", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "help" || slashStripped === "?") {
-    return { intent: "help", entities: {}, confidence: 1.0 };
-  }
+  if (slashStripped === "companies") return { intent: "companies", entities: {}, confidence: 1.0 };
+  if (slashStripped === "contacts") return { intent: "contacts", entities: {}, confidence: 1.0 };
+  if (slashStripped === "articles") return { intent: "articles", entities: {}, confidence: 1.0 };
+  if (slashStripped === "views") return { intent: "views", entities: {}, confidence: 1.0 };
+  if (slashStripped === "surveys") return { intent: "surveys", entities: {}, confidence: 1.0 };
+  if (slashStripped === "engagement") return { intent: "engagement", entities: {}, confidence: 1.0 };
+  if (slashStripped === "lists") return { intent: "lists", entities: {}, confidence: 1.0 };
+  if (slashStripped === "enrich") return { intent: "enrich", entities: {}, confidence: 1.0 };
+  if (slashStripped === "sync") return { intent: "sync", entities: {}, confidence: 1.0 };
+  if (slashStripped === "sync status") return { intent: "sync_status", entities: {}, confidence: 1.0 };
+  if (slashStripped === "help" || slashStripped === "?") return { intent: "help", entities: {}, confidence: 1.0 };
   if (slashStripped.startsWith("company ")) {
     return { intent: "company", entities: { name: slashStripped.slice(8).trim() }, confidence: 1.0 };
   }
