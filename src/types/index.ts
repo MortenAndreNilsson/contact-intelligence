@@ -211,6 +211,12 @@ export interface FilterCriteria {
   tag?: string;
   min_engagement?: number;
   has_survey?: boolean;
+  // Behavior-based filters (G3)
+  read_section?: string;
+  completed_survey?: string;
+  min_score?: number;
+  max_score?: number;
+  active_days?: number;
 }
 
 export interface List {

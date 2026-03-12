@@ -252,6 +252,165 @@ export async function understandQuery(
   }
 }
 
+// --- NL-to-filter parsing (G3) ---
+
+const FILTER_SYSTEM_PROMPT = `You are a filter parser for a contact intelligence system. Given a natural language description of a contact list, extract filter criteria as JSON.
+
+Available filter fields:
+- industry: string — company industry (e.g. "SaaS", "Healthcare", "Financial Services")
+- country: string — company country (e.g. "Norway", "Sweden")
+- tag: string — contact or company tag
+- min_engagement: number — minimum engagement score (integer)
+- has_survey: boolean — has completed any survey
+- read_section: string — has read articles in a section ("explore", "learn", "blog")
+- completed_survey: string — has completed a specific survey (kebab-case slug, e.g. "ai-maturity", "ai-pulse")
+- min_score: number — minimum survey score (range 1-5)
+- max_score: number — maximum survey score (range 1-5)
+- active_days: number — was active within the last N days
+
+Only include fields that are clearly mentioned. Respond with ONLY a JSON object containing the matching fields.
+Example: {"industry": "software", "min_score": 3, "read_section": "explore"}`;
+
+export async function parseListFilter(input: string): Promise<import("../types/index.ts").FilterCriteria | null> {
+  if (!(await isAvailable())) return null;
+
+  const raw = await callLMStudioFreeform([
+    { role: "system", content: FILTER_SYSTEM_PROMPT },
+    { role: "user", content: input },
+  ]);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    const criteria: import("../types/index.ts").FilterCriteria = {};
+    if (typeof parsed.industry === "string") criteria.industry = parsed.industry;
+    if (typeof parsed.country === "string") criteria.country = parsed.country;
+    if (typeof parsed.tag === "string") criteria.tag = parsed.tag;
+    if (typeof parsed.min_engagement === "number") criteria.min_engagement = parsed.min_engagement;
+    if (parsed.has_survey === true) criteria.has_survey = true;
+    if (typeof parsed.read_section === "string") criteria.read_section = parsed.read_section;
+    if (typeof parsed.completed_survey === "string") criteria.completed_survey = parsed.completed_survey;
+    if (typeof parsed.min_score === "number") criteria.min_score = parsed.min_score;
+    if (typeof parsed.max_score === "number") criteria.max_score = parsed.max_score;
+    if (typeof parsed.active_days === "number") criteria.active_days = parsed.active_days;
+    return Object.keys(criteria).length > 0 ? criteria : null;
+  } catch {
+    console.warn("Failed to parse filter JSON from LM Studio:", raw);
+    return null;
+  }
+}
+
+/** Generate a human-readable description from filter criteria */
+export function generateListDescription(criteria: import("../types/index.ts").FilterCriteria): string {
+  const parts: string[] = [];
+  if (criteria.industry) parts.push(`in the ${criteria.industry} industry`);
+  if (criteria.country) parts.push(`based in ${criteria.country}`);
+  if (criteria.tag) parts.push(`tagged "${criteria.tag}"`);
+  if (criteria.min_engagement) parts.push(`with engagement score above ${criteria.min_engagement}`);
+  if (criteria.has_survey) parts.push(`who completed a survey`);
+  if (criteria.read_section) parts.push(`who read ${criteria.read_section} articles`);
+  if (criteria.completed_survey) parts.push(`who completed the "${criteria.completed_survey}" survey`);
+  if (criteria.min_score) parts.push(`with score above ${criteria.min_score}`);
+  if (criteria.max_score) parts.push(`with score below ${criteria.max_score}`);
+  if (criteria.active_days) parts.push(`active in the last ${criteria.active_days} days`);
+  if (parts.length === 0) return "All contacts";
+  return "Contacts " + parts.join(", ");
+}
+
+// --- G4: Entity briefings ---
+
+/** Summarize recent activities into 1-2 sentences (inline summary) */
+export async function summarizeActivities(
+  activities: { activity_type: string; title: string | null; occurred_at: string }[],
+  entityName: string,
+): Promise<string | null> {
+  if (!(await isAvailable()) || activities.length === 0) return null;
+
+  const activityText = activities
+    .slice(0, 15)
+    .map((a) => `${a.activity_type}: ${a.title || "(no title)"} (${a.occurred_at.slice(0, 10)})`)
+    .join("\n");
+
+  const raw = await callLMStudioFreeform([
+    {
+      role: "system",
+      content: "Summarize this CRM activity for " + entityName + " into 1-2 factual sentences. No hype, no superlatives. Focus on engagement patterns and what they are interested in.",
+    },
+    { role: "user", content: activityText },
+  ]);
+  return raw?.trim() || null;
+}
+
+/** Generate a full structured briefing for a company or contact */
+export async function generateBriefing(context: {
+  entityType: "company" | "contact";
+  entityName: string;
+  metadata?: string;
+  activities: { activity_type: string; title: string | null; detail: string | null; occurred_at: string }[];
+  surveyInfo?: string;
+  contacts?: string;
+}): Promise<string | null> {
+  if (!(await isAvailable())) return null;
+
+  const activityText = context.activities
+    .map((a) => `[${a.occurred_at.slice(0, 10)}] ${a.activity_type}: ${a.title || "(no title)"}${a.detail ? " — " + a.detail.slice(0, 100) : ""}`)
+    .join("\n");
+
+  const sections = [
+    context.metadata ? `Metadata: ${context.metadata}` : "",
+    `Activities (${context.activities.length} total):\n${activityText}`,
+    context.surveyInfo ? `Survey data: ${context.surveyInfo}` : "",
+    context.contacts ? `Contacts: ${context.contacts}` : "",
+  ].filter(Boolean).join("\n\n");
+
+  const raw = await callLMStudioFreeform([
+    {
+      role: "system",
+      content: `You are a CRM briefing generator. Write a structured briefing for ${context.entityType} "${context.entityName}".
+
+Format with these sections (use ## headings):
+## Engagement Summary
+1-2 sentences on overall engagement level and trend.
+## Content Interests
+What they have been reading, which topics.
+## Survey Insights
+Scores, maturity level, strengths/gaps (if applicable, otherwise say "No survey data").
+${context.entityType === "company" ? "## Key Contacts\nWho is most active.\n" : ""}## Recommendation
+One suggested next action.
+
+Be factual, concise, no hype. Northern European professional tone.`,
+    },
+    { role: "user", content: sections },
+  ], 800);
+  return raw?.trim() || null;
+}
+
+/** Generic LM Studio call without JSON schema (for freeform text) */
+async function callLMStudioFreeform(
+  messages: { role: string; content: string }[],
+  maxTokens: number = 300,
+): Promise<string | null> {
+  try {
+    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: defaultModel,
+        messages,
+        temperature: 0.3,
+        max_tokens: maxTokens,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    return data?.choices?.[0]?.message?.content?.trim() ?? null;
+  } catch (err) {
+    console.warn("LM Studio freeform call failed:", (err as Error).message);
+    return null;
+  }
+}
+
 // --- Regex fallback (extracted from original normalizeMessage) ---
 
 export function regexFallback(msg: string): QueryUnderstanding {

@@ -1,5 +1,6 @@
 import type { ContactWithDetails, ActivityWithNames } from "../../types/index.ts";
 import { ActivityTabs } from "./activity-tabs.tsx";
+import { InlineSummary } from "./briefing-card.tsx";
 
 function consentBadge(status: string) {
   switch (status) {
@@ -102,9 +103,11 @@ function tagEditor(contactId: string, tags: string[]) {
 export function ContactProfileCard({
   contact,
   activities,
+  summary,
 }: {
   contact: ContactWithDetails;
   activities: ActivityWithNames[];
+  summary?: string | null;
 }) {
   return (
     <div>
@@ -148,6 +151,25 @@ export function ContactProfileCard({
         <div class="flex gap-xs items-center" style="margin-top: var(--space-xs)">
           <span class="badge badge-green">{contact.source}</span>
           {tagEditor(contact.id, contact.tags)}
+        </div>
+
+        <div style="margin-top: var(--space-sm)">
+          <InlineSummary summary={summary ?? null} />
+        </div>
+
+        {/* Briefing button */}
+        <div style="margin-bottom: var(--space-sm)">
+          <button
+            class="period-btn"
+            style="font-size: 0.75rem; padding: 0.35rem 0.75rem"
+            hx-post={`/contacts/${contact.id}/briefing`}
+            hx-target="#canvas"
+            hx-swap="innerHTML"
+            hx-disabled-elt="this"
+          >
+            <span class="btn-label">Get Briefing</span>
+            <span class="btn-loading"><span class="spinner"></span></span>
+          </button>
         </div>
 
         {/* Notes — editable */}

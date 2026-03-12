@@ -1,6 +1,7 @@
 import type { CompanyWithStats, ContactWithDetails } from "../../types/index.ts";
 import type { ActivityWithNames } from "../../types/index.ts";
 import { ActivityTabs } from "./activity-tabs.tsx";
+import { InlineSummary } from "./briefing-card.tsx";
 
 function editableField(
   companyId: string,
@@ -94,10 +95,12 @@ export function CompanyProfileCard({
   company,
   contacts,
   activities,
+  summary,
 }: {
   company: CompanyWithStats;
   contacts: ContactWithDetails[];
   activities: ActivityWithNames[];
+  summary?: string | null;
 }) {
   const scorePct = company.avg_score ? (company.avg_score / 5) * 100 : 0;
 
@@ -133,7 +136,24 @@ export function CompanyProfileCard({
           </div>
         )}
 
+        <InlineSummary summary={summary ?? null} />
+
         {tagEditor(company.id, company.tags)}
+
+        {/* Briefing button */}
+        <div style="margin-bottom: var(--space-sm)">
+          <button
+            class="period-btn"
+            style="font-size: 0.75rem; padding: 0.35rem 0.75rem"
+            hx-post={`/companies/${company.id}/briefing`}
+            hx-target="#canvas"
+            hx-swap="innerHTML"
+            hx-disabled-elt="this"
+          >
+            <span class="btn-label">Get Briefing</span>
+            <span class="btn-loading"><span class="spinner"></span></span>
+          </button>
+        </div>
 
         {company.description ? (
           <div class="text-sm text-secondary" style="margin-top: var(--space-sm); line-height: 1.7; padding: var(--space-sm); background: var(--color-surface-elevated); border-radius: var(--radius-md); border-left: 3px solid var(--visma-turquoise)">

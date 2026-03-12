@@ -4,6 +4,8 @@ import { ContactProfileCard } from "../cards/contact-profile.tsx";
 import { listContacts, getContact, getContactByEmail, updateContact } from "../../services/contacts.ts";
 import { listActivities, createActivity } from "../../services/activities.ts";
 import { enrichSingleContact } from "../../services/enrich-contacts.ts";
+import { summarizeActivities, generateBriefing } from "../../services/local-llm.ts";
+import { BriefingCard } from "../cards/briefing-card.tsx";
 import type { ContactWithDetails } from "../../types/index.ts";
 
 const app = new Hono();
@@ -64,7 +66,8 @@ app.get("/contacts/by-email/:email", async (c) => {
   }
 
   const activities = await listActivities({ contactId: contact.id, limit: 20 });
-  const content = <ContactProfileCard contact={contact} activities={activities} />;
+  const summary = await summarizeActivities(activities, contact.name || contact.email);
+  const content = <ContactProfileCard contact={contact} activities={activities} summary={summary} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
@@ -208,10 +211,49 @@ app.get("/contacts/:id", async (c) => {
   }
 
   const activities = await listActivities({ contactId: id, limit: 20 });
-  const content = <ContactProfileCard contact={contact} activities={activities} />;
+  const summary = await summarizeActivities(activities, contact.name || contact.email);
+  const content = <ContactProfileCard contact={contact} activities={activities} summary={summary} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
+});
+
+// POST /contacts/:id/briefing — generate full briefing (G4)
+app.post("/contacts/:id/briefing", async (c) => {
+  const id = c.req.param("id");
+  const contact = await getContact(id);
+  if (!contact) {
+    return c.html(<div class="card"><div class="text-sm text-muted">Contact not found.</div></div>, 404);
+  }
+
+  const activities = await listActivities({ contactId: id, limit: 50 });
+  const entityName = contact.name || contact.email;
+
+  const metadata = [contact.job_title, contact.company_name, contact.email].filter(Boolean).join(", ");
+
+  const briefing = await generateBriefing({
+    entityType: "contact",
+    entityName,
+    metadata: metadata || undefined,
+    activities,
+  });
+
+  if (!briefing) {
+    return c.html(
+      <div>
+        <div class="card"><div class="text-sm" style="color: var(--visma-coral)">Could not generate briefing. LM Studio may be unavailable.</div></div>
+        <ContactProfileCard contact={contact} activities={activities.slice(0, 20)} />
+      </div>
+    );
+  }
+
+  const summary = await summarizeActivities(activities, entityName);
+  return c.html(
+    <div>
+      <BriefingCard entityName={entityName} entityType="contact" briefing={briefing} />
+      <ContactProfileCard contact={contact} activities={activities.slice(0, 20)} summary={summary} />
+    </div>
+  );
 });
 
 export default app;

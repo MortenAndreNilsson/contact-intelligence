@@ -154,6 +154,25 @@ export async function getSmartListMembers(criteria: FilterCriteria): Promise<Lis
   if (criteria.has_survey) {
     sql += ` AND EXISTS (SELECT 1 FROM activities WHERE contact_id = ct.id AND activity_type = 'survey_completed')`;
   }
+  if (criteria.read_section) {
+    sql += ` AND EXISTS (SELECT 1 FROM activities WHERE contact_id = ct.id AND activity_type = 'article_view' AND detail ILIKE $readSection)`;
+    params.$readSection = `%${criteria.read_section}%`;
+  }
+  if (criteria.completed_survey) {
+    sql += ` AND EXISTS (SELECT 1 FROM activities WHERE contact_id = ct.id AND activity_type = 'survey_completed' AND source_ref ILIKE $surveySlug)`;
+    params.$surveySlug = `%${criteria.completed_survey}%`;
+  }
+  if (criteria.min_score) {
+    sql += ` AND EXISTS (SELECT 1 FROM activities WHERE contact_id = ct.id AND activity_type = 'survey_completed' AND CAST(json_extract(detail, '$.avgScore') AS DOUBLE) >= $minScore)`;
+    params.$minScore = criteria.min_score;
+  }
+  if (criteria.max_score) {
+    sql += ` AND EXISTS (SELECT 1 FROM activities WHERE contact_id = ct.id AND activity_type = 'survey_completed' AND CAST(json_extract(detail, '$.avgScore') AS DOUBLE) <= $maxScore)`;
+    params.$maxScore = criteria.max_score;
+  }
+  if (criteria.active_days) {
+    sql += ` AND EXISTS (SELECT 1 FROM activities WHERE contact_id = ct.id AND occurred_at >= CAST(current_timestamp - INTERVAL '${criteria.active_days} days' AS VARCHAR))`;
+  }
 
   sql += ` ORDER BY engagement_score DESC`;
 

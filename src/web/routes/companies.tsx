@@ -4,6 +4,8 @@ import { CompanyProfileCard } from "../cards/company-profile.tsx";
 import { listCompanies, getCompany, updateCompany, createCompany } from "../../services/companies.ts";
 import { listContacts } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
+import { summarizeActivities, generateBriefing } from "../../services/local-llm.ts";
+import { BriefingCard } from "../cards/briefing-card.tsx";
 import type { CompanyWithStats } from "../../types/index.ts";
 
 const app = new Hono();
@@ -70,10 +72,51 @@ app.get("/companies/:id", async (c) => {
 
   const contacts = await listContacts({ companyId: id });
   const activities = await listActivities({ companyId: id, limit: 20 });
-  const content = <CompanyProfileCard company={company} contacts={contacts} activities={activities} />;
+  const summary = await summarizeActivities(activities, company.name);
+  const content = <CompanyProfileCard company={company} contacts={contacts} activities={activities} summary={summary} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
+});
+
+// POST /companies/:id/briefing — generate full briefing (G4)
+app.post("/companies/:id/briefing", async (c) => {
+  const id = c.req.param("id");
+  const company = await getCompany(id);
+  if (!company) {
+    return c.html(<div class="card"><div class="text-sm text-muted">Company not found.</div></div>, 404);
+  }
+
+  const contacts = await listContacts({ companyId: id });
+  const activities = await listActivities({ companyId: id, limit: 50 });
+
+  const metadata = [company.industry, company.size_bucket, company.country].filter(Boolean).join(", ");
+  const contactSummary = contacts.map((ct) => `${ct.name || ct.email} (${ct.job_title || "no title"}, ${ct.activity_count} activities)`).join("; ");
+
+  const briefing = await generateBriefing({
+    entityType: "company",
+    entityName: company.name,
+    metadata: metadata || undefined,
+    activities,
+    contacts: contactSummary || undefined,
+  });
+
+  if (!briefing) {
+    return c.html(
+      <div>
+        <div class="card"><div class="text-sm" style="color: var(--visma-coral)">Could not generate briefing. LM Studio may be unavailable.</div></div>
+        <CompanyProfileCard company={company} contacts={contacts} activities={activities.slice(0, 20)} />
+      </div>
+    );
+  }
+
+  const summary = await summarizeActivities(activities, company.name);
+  return c.html(
+    <div>
+      <BriefingCard entityName={company.name} entityType="company" briefing={briefing} />
+      <CompanyProfileCard company={company} contacts={contacts} activities={activities.slice(0, 20)} summary={summary} />
+    </div>
+  );
 });
 
 // POST /companies — create a new company

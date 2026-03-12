@@ -18,6 +18,7 @@ import { researchCompany } from "../../services/company-research.ts";
 import { updateCompany, getCompany } from "../../services/companies.ts";
 import { queryAll } from "../../db/client.ts";
 import type { FilterCriteria } from "../../types/index.ts";
+import { parseListFilter, generateListDescription } from "../../services/local-llm.ts";
 
 const app = new Hono();
 
@@ -38,11 +39,119 @@ app.get("/lists/new", async (c) => {
   return c.html(<Layout>{content}</Layout>);
 });
 
+// POST /lists/parse-filter — NL-to-filter parsing (G3)
+app.post("/lists/parse-filter", async (c) => {
+  const body = await c.req.parseBody();
+  const input = String(body.nl_input || "").trim();
+
+  if (!input) {
+    return c.html(
+      <div id="filter-fields">
+        <div class="text-sm" style="color: var(--visma-coral)">Please enter a description.</div>
+      </div>
+    );
+  }
+
+  const criteria = await parseListFilter(input);
+  if (!criteria) {
+    return c.html(
+      <div id="filter-fields">
+        <div class="text-sm" style="color: var(--visma-coral)">Could not parse filters. LM Studio may be unavailable.</div>
+      </div>
+    );
+  }
+
+  // Return the filter fields pre-populated with parsed values
+  return c.html(
+    <div id="filter-fields">
+      <div class="card-label mb-xs">Filter Criteria (parsed from NL)</div>
+      <div class="text-xs mb-sm" style="color: var(--visma-turquoise)">{generateListDescription(criteria)}</div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-xs)">
+        <div>
+          <div class="text-xs text-muted mb-xs">Industry contains</div>
+          <input type="text" name="filter_industry" class="chat-input" value={criteria.industry || ""}
+            placeholder="e.g. SaaS" style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem" />
+        </div>
+        <div>
+          <div class="text-xs text-muted mb-xs">Country contains</div>
+          <input type="text" name="filter_country" class="chat-input" value={criteria.country || ""}
+            placeholder="e.g. Norway" style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem" />
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-xs)">
+        <div>
+          <div class="text-xs text-muted mb-xs">Has tag</div>
+          <input type="text" name="filter_tag" class="chat-input" value={criteria.tag || ""}
+            placeholder="e.g. priority" style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem" />
+        </div>
+        <div>
+          <div class="text-xs text-muted mb-xs">Min engagement score</div>
+          <input type="number" name="filter_min_engagement" class="chat-input"
+            value={criteria.min_engagement ? String(criteria.min_engagement) : ""}
+            placeholder="e.g. 10" min="0" style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem" />
+        </div>
+      </div>
+      <div style="margin-bottom: var(--space-xs)">
+        <label class="flex items-center gap-xs text-sm" style="cursor: pointer">
+          <input type="checkbox" name="filter_has_survey" value="true"
+            checked={criteria.has_survey || false}
+            style="accent-color: var(--visma-turquoise)" />
+          <span>Has completed a survey</span>
+        </label>
+      </div>
+
+      <div class="card-label mb-xs mt-sm" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted)">Behavior Filters</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-xs)">
+        <div>
+          <div class="text-xs text-muted mb-xs">Read section</div>
+          <select name="filter_read_section" class="chat-input"
+            style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem">
+            <option value="">Any</option>
+            <option value="explore" selected={criteria.read_section === "explore"}>Explore</option>
+            <option value="learn" selected={criteria.read_section === "learn"}>Learn</option>
+            <option value="blog" selected={criteria.read_section === "blog"}>Blog</option>
+          </select>
+        </div>
+        <div>
+          <div class="text-xs text-muted mb-xs">Completed survey (slug)</div>
+          <input type="text" name="filter_completed_survey" class="chat-input"
+            value={criteria.completed_survey || ""} placeholder="e.g. ai-maturity"
+            style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem" />
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-xs); margin-bottom: var(--space-sm)">
+        <div>
+          <div class="text-xs text-muted mb-xs">Min score</div>
+          <input type="number" name="filter_min_score" class="chat-input"
+            value={criteria.min_score ? String(criteria.min_score) : ""}
+            placeholder="e.g. 3" min="1" max="5" step="0.1"
+            style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem" />
+        </div>
+        <div>
+          <div class="text-xs text-muted mb-xs">Max score</div>
+          <input type="number" name="filter_max_score" class="chat-input"
+            value={criteria.max_score ? String(criteria.max_score) : ""}
+            placeholder="e.g. 2.5" min="1" max="5" step="0.1"
+            style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem" />
+        </div>
+        <div>
+          <div class="text-xs text-muted mb-xs">Active in last N days</div>
+          <input type="number" name="filter_active_days" class="chat-input"
+            value={criteria.active_days ? String(criteria.active_days) : ""}
+            placeholder="e.g. 30" min="1"
+            style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem" />
+        </div>
+      </div>
+    </div>
+  );
+});
+
 // POST /lists — create a new list
 app.post("/lists", async (c) => {
   const body = await c.req.parseBody();
   const name = String(body.name || "").trim();
-  const description = String(body.description || "").trim() || undefined;
+  let description = String(body.description || "").trim() || undefined;
   const listType = body.list_type === "smart" ? "smart" as const : "manual" as const;
 
   if (!name) {
@@ -64,9 +173,27 @@ app.post("/lists", async (c) => {
     if (minEngagement > 0) filterCriteria.min_engagement = minEngagement;
     if (hasSurvey) filterCriteria.has_survey = true;
 
+    // Behavior-based filters (G3)
+    const readSection = String(body.filter_read_section || "").trim();
+    const completedSurvey = String(body.filter_completed_survey || "").trim();
+    const minScore = Number(body.filter_min_score) || 0;
+    const maxScore = Number(body.filter_max_score) || 0;
+    const activeDays = Number(body.filter_active_days) || 0;
+
+    if (readSection) filterCriteria.read_section = readSection;
+    if (completedSurvey) filterCriteria.completed_survey = completedSurvey;
+    if (minScore > 0) filterCriteria.min_score = minScore;
+    if (maxScore > 0) filterCriteria.max_score = maxScore;
+    if (activeDays > 0) filterCriteria.active_days = activeDays;
+
     // Need at least one filter for a smart list
     if (Object.keys(filterCriteria).length === 0) {
       return c.html(<div class="card"><div class="text-sm" style="color: var(--visma-coral)">Smart lists need at least one filter criterion.</div></div>, 400);
+    }
+
+    // Auto-generate description if not provided
+    if (!description) {
+      description = generateListDescription(filterCriteria);
     }
   }
 
