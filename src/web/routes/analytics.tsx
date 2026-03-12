@@ -3,13 +3,14 @@ import { Layout } from "../pages/layout.tsx";
 import { ArticlesCard } from "../cards/articles-analytics.tsx";
 import { ViewsCard } from "../cards/views-analytics.tsx";
 import { SurveysCard } from "../cards/surveys-analytics.tsx";
+import { SurveyDetailCard } from "../cards/survey-detail.tsx";
 import { EngagementCard } from "../cards/engagement-card.tsx";
 import { SurveyDimensionsCard } from "../cards/survey-dimensions.tsx";
 import { CompanyTimelineCard } from "../cards/company-timeline.tsx";
 import { ArticleTrendCard } from "../cards/article-trend.tsx";
 import {
-  getTopArticles, getTopPages, getSurveyAnalytics, getEngagementScores,
-  getSurveyDimensions, getCompanyTimeline, getArticleTrend,
+  getTopArticles, getTopPages, getSurveyAnalytics, getSurveyIndex, getSurveyDetail,
+  getEngagementScores, getSurveyDimensions, getCompanyTimeline, getArticleTrend,
 } from "../../services/analytics.ts";
 import type { Period } from "../cards/helpers.tsx";
 import { periodToDays } from "../cards/helpers.tsx";
@@ -42,8 +43,23 @@ app.get("/analytics/views", async (c) => {
 app.get("/analytics/surveys", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
   const period = parsePeriod(c.req.query("period"));
-  const data = await getSurveyAnalytics(periodToDays(period));
-  const content = <SurveysCard data={data} period={period} />;
+  const days = periodToDays(period);
+  const [data, surveys] = await Promise.all([
+    getSurveyAnalytics(days),
+    getSurveyIndex(days),
+  ]);
+  const content = <SurveysCard data={data} surveys={surveys} period={period} />;
+  if (isHtmx) return c.html(content);
+  return c.html(<Layout>{content}</Layout>);
+});
+
+// Per-survey detail — must be before company dimensions to avoid slug/companyId conflict
+app.get("/analytics/surveys/:slug", async (c) => {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  const slug = decodeURIComponent(c.req.param("slug"));
+  const period = parsePeriod(c.req.query("period"));
+  const data = await getSurveyDetail(slug, periodToDays(period));
+  const content = <SurveyDetailCard data={data} />;
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });
@@ -57,8 +73,8 @@ app.get("/analytics/engagement", async (c) => {
   return c.html(<Layout>{content}</Layout>);
 });
 
-// Survey dimension breakdown for a company
-app.get("/analytics/surveys/:companyId/dimensions", async (c) => {
+// Company survey dimension breakdown (moved from /analytics/surveys/:companyId/dimensions)
+app.get("/analytics/company/:companyId/survey-dimensions", async (c) => {
   const isHtmx = c.req.header("HX-Request") === "true";
   const companyId = c.req.param("companyId");
   const data = await getSurveyDimensions(companyId);

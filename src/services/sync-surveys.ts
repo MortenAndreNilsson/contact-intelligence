@@ -224,6 +224,15 @@ export async function syncEtCmsSurveys(): Promise<SyncResult> {
     if (surveyId) {
       slugMap.set(surveyId, docSlug);
     }
+
+    // Upsert survey metadata (title from published-surveys)
+    const title = fields.title || null;
+    await run(
+      `INSERT INTO survey_metadata (slug, title, source, synced_at)
+       VALUES ($slug, $title, 'et-cms', CAST(current_timestamp AS VARCHAR))
+       ON CONFLICT (slug) DO UPDATE SET title = $title, synced_at = CAST(current_timestamp AS VARCHAR)`,
+      { $slug: docSlug, $title: title }
+    );
   }
 
   // 2. Fetch survey_responses for each survey (use IDs from published-surveys, not parent collection)

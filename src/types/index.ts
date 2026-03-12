@@ -173,6 +173,36 @@ export interface SurveyOverview {
   recent_completions: SurveyCompletion[];
 }
 
+// --- Per-survey analytics types ---
+
+export interface SurveyIndexEntry {
+  slug: string;
+  title: string | null;
+  response_count: number;
+  avg_score: number | null;
+  is_scored: boolean;
+  latest_completion: string;
+  source: string | null;
+}
+
+export interface QuestionDistribution {
+  question_id: string;
+  question_index: number;
+  sample_label: string | null;
+  answers: { label: string; count: number; percentage: number }[];
+}
+
+export interface SurveyDetailData {
+  slug: string;
+  title: string | null;
+  response_count: number;
+  avg_score: number | null;
+  is_scored: boolean;
+  maturity_distribution: { level: string; count: number }[];
+  question_distributions: QuestionDistribution[];
+  recent_completions: SurveyCompletion[];
+}
+
 // --- List types ---
 
 export interface FilterCriteria {

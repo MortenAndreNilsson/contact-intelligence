@@ -9,7 +9,7 @@ import { listContacts, getContact, getContactByEmail } from "../../services/cont
 import { listActivities } from "../../services/activities.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
 import { researchCompany } from "../../services/company-research.ts";
-import { getTopArticles, getTopPages, getSurveyAnalytics, getEngagementScores } from "../../services/analytics.ts";
+import { getTopArticles, getTopPages, getSurveyAnalytics, getSurveyIndex, getEngagementScores } from "../../services/analytics.ts";
 import { listLists, getList, getEffectiveMembers } from "../../services/lists.ts";
 import { syncEvents } from "../../services/sync-events.ts";
 import { syncAllSurveys } from "../../services/sync-surveys.ts";
@@ -235,8 +235,12 @@ async function dispatchIntent(understanding: QueryUnderstanding): Promise<Dispat
     }
 
     case "surveys": {
-      const data = await getSurveyAnalytics(entities.days ?? null);
-      return { html: <SurveysCard data={data} />, summary: "Showed survey analytics" };
+      const days = entities.days ?? null;
+      const [data, surveys] = await Promise.all([
+        getSurveyAnalytics(days),
+        getSurveyIndex(days),
+      ]);
+      return { html: <SurveysCard data={data} surveys={surveys} />, summary: "Showed survey analytics" };
     }
 
     case "engagement": {

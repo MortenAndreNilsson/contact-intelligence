@@ -13,7 +13,7 @@ export function SurveyDimensionsCard({ data, companyId }: {
             hx-target="#canvas"
             hx-swap="innerHTML"
           >
-            Surveys
+            Surveys (all)
           </span>
           <span class="text-xs text-muted">/</span>
           <span

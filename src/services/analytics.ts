@@ -5,13 +5,16 @@ import type {
   CompanySurveyStats,
   SurveyCompletion,
   SurveyOverview,
+  SurveyIndexEntry,
+  SurveyDetailData,
+  QuestionDistribution,
   CompanyEngagement,
 } from "../types/index.ts";
 
 /** Build a WHERE clause fragment for date filtering. Returns empty string for "all". */
-function dateFilter(alias: string, days: number | null): string {
+function dateFilter(alias: string, days: number | null, column = "occurred_at"): string {
   if (days === null) return "";
-  return ` AND ${alias}.occurred_at >= CAST(current_timestamp - INTERVAL '${days} days' AS VARCHAR)`;
+  return ` AND ${alias}.${column} >= CAST(current_timestamp - INTERVAL '${days} days' AS VARCHAR)`;
 }
 
 /** Top articles ranked by unique readers, with 7-day movement */
@@ -328,5 +331,153 @@ export async function getArticleTrend(slug: string): Promise<{
   return {
     title: titleRow?.title || decodeURIComponent(slug).replace(/-/g, " "),
     weeks: rows.reverse(),
+  };
+}
+
+/** List all surveys with response counts, avg scores, and metadata */
+export async function getSurveyIndex(days: number | null = null): Promise<SurveyIndexEntry[]> {
+  return queryAll<SurveyIndexEntry>(
+    `SELECT
+       sr.slug,
+       sm.title,
+       COUNT(*) AS response_count,
+       CASE WHEN COUNT(sr.overallScore) > 0
+            THEN AVG(sr.overallScore)
+            ELSE NULL END AS avg_score,
+       CASE WHEN COUNT(sr.overallScore) > 0 THEN true ELSE false END AS is_scored,
+       MAX(sr.completedAt) AS latest_completion,
+       sm.source
+     FROM survey_responses sr
+     LEFT JOIN survey_metadata sm ON sr.slug = sm.slug
+     WHERE sr.slug IS NOT NULL
+       ${dateFilter("sr", days, "completedAt")}
+     GROUP BY sr.slug, sm.title, sm.source
+     ORDER BY response_count DESC`
+  );
+}
+
+/** Full detail for a single survey: summary, maturity distribution, answer distributions, recent completions */
+export async function getSurveyDetail(slug: string, days: number | null = null): Promise<SurveyDetailData> {
+  // Summary
+  const summary = await queryOne<{
+    response_count: number;
+    avg_score: number | null;
+    scored_count: number;
+  }>(
+    `SELECT
+       COUNT(*) AS response_count,
+       CASE WHEN COUNT(overallScore) > 0 THEN AVG(overallScore) ELSE NULL END AS avg_score,
+       COUNT(overallScore) AS scored_count
+     FROM survey_responses
+     WHERE slug = $slug
+       ${dateFilter("survey_responses", days, "completedAt")}`,
+    { $slug: slug }
+  );
+
+  const isScored = (summary?.scored_count ?? 0) > 0;
+
+  // Title from metadata
+  const meta = await queryOne<{ title: string | null }>(
+    "SELECT title FROM survey_metadata WHERE slug = $slug",
+    { $slug: slug }
+  );
+
+  // Maturity distribution (scored surveys only)
+  let maturityDist: { level: string; count: number }[] = [];
+  if (isScored) {
+    maturityDist = await queryAll<{ level: string; count: number }>(
+      `SELECT maturityLevel AS level, COUNT(*) AS count
+       FROM survey_responses
+       WHERE slug = $slug AND maturityLevel IS NOT NULL
+         ${dateFilter("survey_responses", days, "completedAt")}
+       GROUP BY maturityLevel
+       ORDER BY count DESC`,
+      { $slug: slug }
+    );
+  }
+
+  // Answer distributions — fetch all answers JSON, aggregate in TypeScript
+  const answerRows = await queryAll<{ answers: string }>(
+    `SELECT answers FROM survey_responses
+     WHERE slug = $slug AND answers IS NOT NULL
+       ${dateFilter("survey_responses", days, "completedAt")}`,
+    { $slug: slug }
+  );
+
+  const questionAgg = new Map<string, Map<string, number>>();
+  for (const row of answerRows) {
+    try {
+      const parsed = JSON.parse(row.answers);
+      if (typeof parsed !== "object" || parsed === null) continue;
+      for (const [qId, answer] of Object.entries(parsed)) {
+        if (!questionAgg.has(qId)) questionAgg.set(qId, new Map());
+        const counts = questionAgg.get(qId)!;
+        // Answer can be { value, label } or just a string/number
+        const label = typeof answer === "object" && answer !== null
+          ? (answer as any).label || (answer as any).value || String(answer)
+          : String(answer);
+        counts.set(label, (counts.get(label) || 0) + 1);
+      }
+    } catch { /* skip malformed */ }
+  }
+
+  // Sort question IDs (they are timestamps like q1772796771967 — lexicographic sort preserves order)
+  const sortedQIds = [...questionAgg.keys()].sort();
+  const questionDistributions: QuestionDistribution[] = sortedQIds.map((qId, idx) => {
+    const counts = questionAgg.get(qId)!;
+    const total = [...counts.values()].reduce((a, b) => a + b, 0);
+    const answers = [...counts.entries()]
+      .map(([label, count]) => ({ label, count, percentage: Math.round((count / total) * 100) }))
+      .sort((a, b) => b.count - a.count);
+    return {
+      question_id: qId,
+      question_index: idx + 1,
+      sample_label: answers[0]?.label ?? null,
+      answers,
+    };
+  });
+
+  // Recent completions
+  const recentRows = await queryAll<{
+    contact_name: string | null;
+    contact_email: string;
+    company_name: string | null;
+    score: number | null;
+    completed_at: string;
+    source: string | null;
+  }>(
+    `SELECT
+       ct.name AS contact_name,
+       sr.email AS contact_email,
+       comp.name AS company_name,
+       sr.overallScore AS score,
+       sr.completedAt AS completed_at,
+       sr.source
+     FROM survey_responses sr
+     LEFT JOIN contacts ct ON sr.email = ct.email
+     LEFT JOIN companies comp ON ct.company_id = comp.id
+     WHERE sr.slug = $slug
+       ${dateFilter("sr", days, "completedAt")}
+     ORDER BY sr.completedAt DESC
+     LIMIT 10`,
+    { $slug: slug }
+  );
+
+  const recentCompletions: SurveyCompletion[] = recentRows.map((r) => ({
+    ...r,
+    contact_email: r.contact_email || "",
+    score: r.score ?? 0,
+    maturity_level: r.score != null ? maturityLevel(r.score) : "",
+  }));
+
+  return {
+    slug,
+    title: meta?.title ?? null,
+    response_count: summary?.response_count ?? 0,
+    avg_score: summary?.avg_score ?? null,
+    is_scored: isScored,
+    maturity_distribution: maturityDist,
+    question_distributions: questionDistributions,
+    recent_completions: recentCompletions,
   };
 }

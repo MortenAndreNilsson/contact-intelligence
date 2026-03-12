@@ -109,5 +109,12 @@ CREATE INDEX IF NOT EXISTS idx_activities_type ON activities(activity_type);
 CREATE INDEX IF NOT EXISTS idx_activities_source_ref ON activities(source_ref);
 CREATE INDEX IF NOT EXISTS idx_cms_events_email ON cms_events(userEmail);
 CREATE INDEX IF NOT EXISTS idx_cms_events_type ON cms_events(eventType);
+CREATE TABLE IF NOT EXISTS survey_metadata (
+  slug VARCHAR PRIMARY KEY,
+  title VARCHAR,
+  source VARCHAR,
+  synced_at VARCHAR
+);
+
 CREATE INDEX IF NOT EXISTS idx_survey_responses_email ON survey_responses(email);
 CREATE INDEX IF NOT EXISTS idx_survey_responses_slug ON survey_responses(slug)
