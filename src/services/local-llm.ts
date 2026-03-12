@@ -56,12 +56,14 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// --- Intent classification JSON schema ---
+// --- Category-based intent classification ---
+// Level 1: LLM classifies into 5 categories (simpler prompt, more reliable)
+// Level 2: Keyword/regex sub-classifies within category (fast, deterministic)
 
-const INTENT_SCHEMA = {
+const CATEGORY_SCHEMA = {
   type: "object",
   properties: {
-    intent: { type: "string" },
+    category: { type: "string" },
     entities: {
       type: "object",
       properties: {
@@ -80,58 +82,79 @@ const INTENT_SCHEMA = {
     confidence: { type: "number" },
     resolvedFromContext: { type: "boolean" },
   },
-  required: ["intent", "entities", "confidence", "resolvedFromContext"],
+  required: ["category", "entities", "confidence", "resolvedFromContext"],
   additionalProperties: false,
 };
 
-// --- System prompt for intent classification ---
+const CATEGORY_PROMPT = `You are a query classifier for a contact intelligence CRM. Classify the user message into one of these categories and extract entities.
 
-const SYSTEM_PROMPT = `You are an intent classifier for a contact intelligence system. Given a user message, classify the intent and extract entities.
-
-Available intents:
-- dashboard: overview, stats, how are we doing
-- companies: list companies, show all companies
-- company: show a specific company (needs name)
-- contacts: list contacts, show all contacts, "who works at [company]?" (needs company name in entities)
-- contact: show a specific contact (needs name or email)
-- articles: top articles, what's being read
-- views: page views, most viewed
-- surveys: survey results, maturity scores
-- engagement: who's engaged, hot leads
-- dimensions: survey dimensions for a company, breakdown
-- timeline: timeline for a company, activity over time
-- article_trend: trend for a specific article
-- lists: show lists, segments
-- list: show a specific list (needs listName)
-- research: research a company, deep dive (needs name)
-- enrich: enrich contacts, look up everyone
-- sync: run a sync, refresh data, pull latest data, run full sync
-- sync_status: show sync status, when was last sync, sync log
-- help: help, what can you do
-- lookup: ambiguous person/company reference (needs name or email)
-- unknown: cannot determine intent
+Categories:
+- view_data: user wants to see data (dashboard, articles, page views, surveys, engagement scores, lists overview)
+- entity_lookup: user wants to see a specific company, contact, list, or asks about a named entity ("show Visma", "who is Hanne?", "who works at Spotify?", "timeline for Acme", "survey dimensions for Visma")
+- action: user wants to DO something (run sync, enrich contacts, research a company)
+- admin: help, commands, sync status
+- unknown: cannot determine
 
 Context resolution rules:
-- Pronouns like "them", "they", "it", "their", "that company", "that person" should resolve from conversation history
-- After viewing a company: "who works there?" = contacts intent for that company
-- After viewing a company: "how are their surveys?" = dimensions intent for that company
-- After viewing a contact: "where do they work?" = company intent for that contact's company
+- Pronouns ("them", "they", "it", "that company") resolve from conversation history
+- After viewing a company: "who works there?" = entity_lookup for that company
+- After viewing a company: "how are their surveys?" = entity_lookup for that company
+- After viewing a contact: "where do they work?" = entity_lookup for that contact's company
 
 Entity fields (include only those that apply):
-- name: company or contact name (a person's full name or a company name, NOT a description)
+- name: company or contact name (NOT a description)
 - email: email address (must contain @)
-- domain: website domain (e.g., "visma.com")
-- industry: industry category (e.g., "Software", "Healthcare", "Financial Services")
-- country: country name (e.g., "Norway", "Sweden", "Netherlands")
-- days: time filter as an INTEGER number of days ("this week" = 7, "this month" = 30, "last 3 days" = 3)
-- limit: number of results as an INTEGER (e.g., "top 5" = 5)
+- domain: website domain
+- industry: industry category
+- country: country name
+- days: time filter as INTEGER days ("this week"=7, "this month"=30)
+- limit: number of results as INTEGER ("top 5"=5)
 - listName: name of a specific list
 - slug: article slug
 
-IMPORTANT: days and limit MUST be numbers, not strings. Only include entity fields you are confident about.
+IMPORTANT: days and limit MUST be numbers. Only include entity fields you are confident about.
 
 Respond with ONLY a JSON object:
-{"intent": "...", "entities": {...}, "confidence": 0.0-1.0, "resolvedFromContext": false}`;
+{"category": "...", "entities": {...}, "confidence": 0.0-1.0, "resolvedFromContext": false}`;
+
+// --- Level 2: keyword sub-classification within categories ---
+
+function subClassifyViewData(msg: string): string {
+  const lower = msg.toLowerCase();
+  if (/\b(dashboard|overview|summary|stats|numbers|how are we doing)\b/.test(lower)) return "dashboard";
+  if (/\b(articles|top articles|what.s being read|popular content|most read)\b/.test(lower)) return "articles";
+  if (/\b(views|page views|top pages|most viewed|traffic)\b/.test(lower)) return "views";
+  if (/\b(surveys|survey results|maturity|survey scores)\b/.test(lower)) return "surveys";
+  if (/\b(engagement|who.s engaged|hot leads|rising|most active)\b/.test(lower)) return "engagement";
+  if (/\b(lists|my lists|segments|segmentation|all lists)\b/.test(lower)) return "lists";
+  return "dashboard"; // safe default for view_data
+}
+
+function subClassifyEntityLookup(msg: string, entities: QueryUnderstanding["entities"]): string {
+  const lower = msg.toLowerCase();
+  if (entities.listName || /\b(list\s)\b/.test(lower)) return "list";
+  if (/\b(who works|contacts at|employees|people at|team at)\b/.test(lower)) return "contacts";
+  if (/\b(dimensions?|breakdown|survey scores? for|survey.* for)\b/.test(lower)) return "dimensions";
+  if (/\b(timeline|activity over time|history for)\b/.test(lower)) return "timeline";
+  if (entities.email) return "contact";
+  // If we have a name, default to "lookup" (ambiguous — handler tries contact then company)
+  if (entities.name) return "lookup";
+  return "company";
+}
+
+function subClassifyAction(msg: string): string {
+  const lower = msg.toLowerCase();
+  if (/\b(research|deep dive|deep research|profile)\b/.test(lower)) return "research";
+  if (/\b(enrich|enrichment|look ?up everyone)\b/.test(lower)) return "enrich";
+  if (/\b(sync|synchronize|refresh|pull data|update data|fetch data)\b/.test(lower)) return "sync";
+  return "sync"; // safe default
+}
+
+function subClassifyAdmin(msg: string): string {
+  const lower = msg.toLowerCase();
+  if (/\b(sync status|sync log|when.* last sync|last sync)\b/.test(lower)) return "sync_status";
+  return "help";
+}
 
 // --- Main entry point: intent classification ---
 
@@ -144,7 +167,7 @@ export async function understandQuery(
   }
 
   const contextMessages: { role: string; content: string }[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: CATEGORY_PROMPT },
   ];
 
   const recentHistory = history.slice(-6);
@@ -163,7 +186,7 @@ export async function understandQuery(
   const raw = await complete(contextMessages, {
     maxTokens: 200,
     temperature: 0.1,
-    jsonSchema: INTENT_SCHEMA,
+    jsonSchema: CATEGORY_SCHEMA,
     timeout: 10000,
   });
   if (!raw) {
@@ -172,19 +195,11 @@ export async function understandQuery(
 
   try {
     const parsed = JSON.parse(raw);
-    const validIntents = [
-      "dashboard", "companies", "company", "contacts", "contact",
-      "articles", "views", "surveys", "engagement", "dimensions",
-      "timeline", "article_trend", "lists", "list", "research",
-      "enrich", "sync", "sync_status", "help", "lookup", "unknown",
-    ];
-
-    if (!validIntents.includes(parsed.intent)) {
-      parsed.intent = "unknown";
-    }
+    const validCategories = ["view_data", "entity_lookup", "action", "admin", "unknown"];
+    const category = validCategories.includes(parsed.category) ? parsed.category : "unknown";
 
     if (typeof parsed.confidence === "number" && parsed.confidence < 0.4) {
-      parsed.intent = "unknown";
+      return regexFallback(message);
     }
 
     const entities = parsed.entities || {};
@@ -197,8 +212,18 @@ export async function understandQuery(
       entities.limit = Number.isFinite(n) ? n : undefined;
     }
 
+    // Level 2: sub-classify within category
+    let intent: string;
+    switch (category) {
+      case "view_data": intent = subClassifyViewData(message); break;
+      case "entity_lookup": intent = subClassifyEntityLookup(message, entities); break;
+      case "action": intent = subClassifyAction(message); break;
+      case "admin": intent = subClassifyAdmin(message); break;
+      default: intent = "unknown";
+    }
+
     return {
-      intent: parsed.intent || "unknown",
+      intent,
       entities,
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
       resolvedFromContext: parsed.resolvedFromContext === true,
