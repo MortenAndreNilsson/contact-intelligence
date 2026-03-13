@@ -144,6 +144,7 @@ function subClassifyEntityLookup(msg: string, entities: QueryUnderstanding["enti
 
 function subClassifyAction(msg: string): string {
   const lower = msg.toLowerCase();
+  if (/\b(briefing|brief me|brief on|get briefing)\b/.test(lower)) return "briefing";
   if (/\b(research|deep dive|deep research|profile)\b/.test(lower)) return "research";
   if (/\b(enrich|enrichment|look ?up everyone)\b/.test(lower)) return "enrich";
   if (/\b(sync|synchronize|refresh|pull data|update data|fetch data)\b/.test(lower)) return "sync";
@@ -509,6 +510,9 @@ export function regexFallback(msg: string): QueryUnderstanding {
   }
   if (slashStripped.startsWith("research ")) {
     return { intent: "research", entities: { name: slashStripped.slice(9).trim() }, confidence: 1.0 };
+  }
+  if (slashStripped.startsWith("briefing ")) {
+    return { intent: "briefing", entities: { name: slashStripped.slice(9).trim() }, confidence: 1.0 };
   }
 
   return { intent: "unknown", entities: {}, confidence: 0 };

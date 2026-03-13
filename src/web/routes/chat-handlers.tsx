@@ -14,10 +14,13 @@ import { ListsCard } from "../cards/lists-card.tsx";
 import { ListDetailCard } from "../cards/list-detail-card.tsx";
 import { getDashboardStats } from "../../services/dashboard.ts";
 import { listCompanies, getCompany, updateCompany } from "../../services/companies.ts";
-import { listContacts } from "../../services/contacts.ts";
+import { listContacts, getContact, updateContact } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
 import { researchCompany } from "../../services/company-research.ts";
+import { generateBriefing, summarizeActivities } from "../../services/local-llm.ts";
+import { BriefingCard } from "../cards/briefing-card.tsx";
+import { ContactProfileCard } from "../cards/contact-profile.tsx";
 import { getTopArticles, getTopPages, getSurveyAnalytics, getSurveyIndex, getEngagementScores } from "../../services/analytics.ts";
 import { listLists, getList, getEffectiveMembers } from "../../services/lists.ts";
 import { syncEvents } from "../../services/sync-events.ts";
@@ -27,6 +30,7 @@ import {
   resolveAndRenderCompany,
   resolveAndRenderContact,
   resolveCompany,
+  resolveContact,
   CompanyListFragment,
   ContactListFragment,
 } from "../helpers/entity-resolver.tsx";
@@ -55,6 +59,7 @@ export function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/sync</span> — run full sync pipeline (events + surveys + materialize + enrich)</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/enrich</span> — enrich contacts via Discovery Engine</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/research [company]</span> — deep research a company via Gemini</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/briefing [company/contact]</span> — generate CRM briefing via LM Studio</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/help</span> — show this list</div>
         <div class="text-xs text-muted mt-sm">You can also type naturally: "who works at Visma?", "show me their survey scores", "any Norwegian software companies?"</div>
       </div>
@@ -188,7 +193,11 @@ const handleResearch: IntentHandler = async (entities) => {
     const researchResult = await researchCompany(target.name, target.domain);
     if (researchResult) {
       const fields: Record<string, unknown> = {};
-      if (researchResult.description) fields.description = researchResult.description;
+      if (researchResult.description) {
+        fields.description = target.description
+          ? `${target.description}\n\n---\n\n${researchResult.description}`
+          : researchResult.description;
+      }
       if (researchResult.industry && !target.industry) fields.industry = researchResult.industry;
       if (researchResult.country && !target.country) fields.country = researchResult.country;
       if (researchResult.size_bucket && !target.size_bucket) fields.size_bucket = researchResult.size_bucket;
@@ -357,6 +366,83 @@ const handleLookup: IntentHandler = async (entities) => {
   return { html: <div class="card"><div class="text-sm text-muted">No results found for "{query}".</div></div>, summary: `No results for "${query}"` };
 };
 
+const handleBriefing: IntentHandler = async (entities) => {
+  const query = entities.name || entities.email;
+  if (!query) {
+    return { html: <div class="card"><div class="text-sm text-muted">Which company or contact? Try: "briefing Visma" or "briefing hanne@example.com"</div></div>, summary: "Asked for entity name" };
+  }
+
+  // Try company first, then contact
+  const companyResult = await resolveCompany(query);
+  if (companyResult.type === "found" && companyResult.item) {
+    const company = companyResult.item;
+    const contacts = await listContacts({ companyId: company.id });
+    const activities = await listActivities({ companyId: company.id, limit: 50 });
+    const metadata = [company.industry, company.size_bucket, company.country].filter(Boolean).join(", ");
+    const contactSummary = contacts.map((ct) => `${ct.name || ct.email} (${ct.job_title || "no title"}, ${ct.activity_count} activities)`).join("; ");
+
+    const briefing = await generateBriefing({
+      entityType: "company",
+      entityName: company.name,
+      metadata: metadata || undefined,
+      activities,
+      contacts: contactSummary || undefined,
+    });
+
+    if (!briefing) {
+      return { html: <div class="card"><div class="text-sm" style="color: var(--visma-coral)">Could not generate briefing. LM Studio may be unavailable.</div></div>, summary: "Briefing generation failed" };
+    }
+
+    await updateCompany(company.id, { briefing, briefing_at: new Date().toISOString() });
+    const summary = await summarizeActivities(activities, company.name);
+    return {
+      html: (
+        <div>
+          <BriefingCard entityName={company.name} entityType="company" briefing={briefing} />
+          <CompanyProfileCard company={company} contacts={contacts} activities={activities.slice(0, 20)} summary={summary} />
+        </div>
+      ),
+      summary: `Generated briefing for ${company.name}`,
+      entityId: company.id, entityName: company.name, entityType: "company",
+    };
+  }
+
+  // Try contact
+  const contactResult = await resolveContact(query);
+  if (contactResult.type === "found" && contactResult.item) {
+    const contact = contactResult.item;
+    const activities = await listActivities({ contactId: contact.id, limit: 50 });
+    const entityName = contact.name || contact.email;
+    const metadata = [contact.job_title, contact.company_name, contact.email].filter(Boolean).join(", ");
+
+    const briefing = await generateBriefing({
+      entityType: "contact",
+      entityName,
+      metadata: metadata || undefined,
+      activities,
+    });
+
+    if (!briefing) {
+      return { html: <div class="card"><div class="text-sm" style="color: var(--visma-coral)">Could not generate briefing. LM Studio may be unavailable.</div></div>, summary: "Briefing generation failed" };
+    }
+
+    await updateContact(contact.id, { briefing, briefing_at: new Date().toISOString() });
+    const summary = await summarizeActivities(activities, entityName);
+    return {
+      html: (
+        <div>
+          <BriefingCard entityName={entityName} entityType="contact" briefing={briefing} />
+          <ContactProfileCard contact={contact} activities={activities.slice(0, 20)} summary={summary} />
+        </div>
+      ),
+      summary: `Generated briefing for ${entityName}`,
+      entityId: contact.id, entityName, entityType: "contact",
+    };
+  }
+
+  return { html: <div class="card"><div class="text-sm text-muted">No company or contact found matching "{query}".</div></div>, summary: `No entity found for "${query}"` };
+};
+
 const handleUnknown: IntentHandler = async () => {
   return { html: <HelpCard />, summary: "Showed help (unknown intent)" };
 };
@@ -378,6 +464,7 @@ export const handlers: Record<string, IntentHandler> = {
   lists: handleLists,
   list: handleList,
   research: handleResearch,
+  briefing: handleBriefing,
   enrich: handleEnrich,
   sync: handleSync,
   sync_status: handleSyncStatus,

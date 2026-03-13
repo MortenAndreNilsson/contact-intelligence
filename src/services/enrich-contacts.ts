@@ -9,8 +9,9 @@
  */
 
 import { queryAll, queryOne, run, generateId } from "../db/client.ts";
-import { createCompany } from "./companies.ts";
+import { createCompany, updateCompany } from "./companies.ts";
 import { lookupPerson } from "./people-lookup.ts";
+import { researchCompany } from "./company-research.ts";
 import type { EnrichResult, PersonInfo } from "../types/index.ts";
 
 interface UnenrichedContact {
@@ -38,6 +39,26 @@ async function resolveCompany(orgName: string, country?: string | null): Promise
 
   // Create new company with name + country from Discovery Engine
   const company = await createCompany(orgName, undefined, undefined, undefined, country ?? undefined);
+
+  // Fire-and-forget Gemini research for the new company (don't block enrich pipeline)
+  if (Bun.env.GEMINI_API_KEY) {
+    researchCompany(orgName).then(async (result) => {
+      if (!result) return;
+      const fields: Record<string, unknown> = {};
+      if (result.description) fields.description = result.description;
+      if (result.industry) fields.industry = result.industry;
+      if (result.country && !country) fields.country = result.country;
+      if (result.size_bucket) fields.size_bucket = result.size_bucket;
+      if (result.tags.length > 0) fields.tags = result.tags;
+      if (Object.keys(fields).length > 0) {
+        await updateCompany(company.id, fields);
+        console.log(`Auto-researched new company: ${orgName}`);
+      }
+    }).catch((err) => {
+      console.warn(`Auto-research failed for ${orgName}:`, err.message);
+    });
+  }
+
   return { id: company.id, created: true };
 }
 
