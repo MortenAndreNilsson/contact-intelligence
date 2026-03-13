@@ -186,11 +186,40 @@ async function materializeSurveyActivities(): Promise<number> {
   return created;
 }
 
+/**
+ * Repair activity company_id to match their contact's current company.
+ * Fixes the case where materialize created activities under a domain-based company
+ * but enrich later moved the contact to the real company.
+ */
+async function repairActivityCompanies(): Promise<number> {
+  const mismatched = await queryAll<{ activity_id: string; contact_company_id: string }>(
+    `SELECT a.id AS activity_id, c.company_id AS contact_company_id
+     FROM activities a
+     JOIN contacts c ON a.contact_id = c.id
+     WHERE c.company_id IS NOT NULL
+       AND (a.company_id IS NULL OR a.company_id != c.company_id)`
+  );
+
+  for (const row of mismatched) {
+    await run(
+      `UPDATE activities SET company_id = $companyId WHERE id = $id`,
+      { $companyId: row.contact_company_id, $id: row.activity_id }
+    );
+  }
+
+  if (mismatched.length > 0) {
+    console.log(`Repaired ${mismatched.length} activity company assignments`);
+  }
+
+  return mismatched.length;
+}
+
 export interface MaterializeResult {
   companies: number;
   contacts: number;
   cmsActivities: number;
   surveyActivities: number;
+  activitiesRepaired: number;
 }
 
 export async function materialize(): Promise<MaterializeResult> {
@@ -198,6 +227,7 @@ export async function materialize(): Promise<MaterializeResult> {
   const contacts = await materializeContacts();
   const cmsActivities = await materializeCmsActivities();
   const surveyActivities = await materializeSurveyActivities();
+  const activitiesRepaired = await repairActivityCompanies();
 
   const total = companies + contacts + cmsActivities + surveyActivities;
 
@@ -208,5 +238,5 @@ export async function materialize(): Promise<MaterializeResult> {
     { $id: generateId(), $processed: total, $created: total }
   );
 
-  return { companies, contacts, cmsActivities, surveyActivities };
+  return { companies, contacts, cmsActivities, surveyActivities, activitiesRepaired };
 }

@@ -193,6 +193,7 @@ app.post("/sync/materialize", async (c) => {
           <div class="card-label mb-xs" style="color: var(--visma-turquoise)">Materialize Complete</div>
           <div class="text-sm text-secondary">
             +{result.companies} companies, +{result.contacts} contacts, +{result.cmsActivities} CMS activities, +{result.surveyActivities} survey activities
+            {result.activitiesRepaired > 0 && `, ${result.activitiesRepaired} activities reassigned`}
           </div>
         </div>
         {syncStatus}

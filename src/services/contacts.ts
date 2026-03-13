@@ -116,9 +116,13 @@ export async function updateContact(id: string, fields: Partial<Pick<Contact, "n
 
   await run(`UPDATE contacts SET ${sets.join(", ")} WHERE id = $id`, params);
 
-  // Reattach
+  // Reattach — also update activity company_id when contact moved to a new company
+  const newCompanyId = params.$companyId;
   for (const a of activityIds) {
-    await run(`UPDATE activities SET contact_id = $cid WHERE id = $aid`, { $cid: id, $aid: a.id });
+    await run(
+      `UPDATE activities SET contact_id = $cid${newCompanyId !== undefined ? ", company_id = $newCo" : ""} WHERE id = $aid`,
+      newCompanyId !== undefined ? { $cid: id, $newCo: newCompanyId, $aid: a.id } : { $cid: id, $aid: a.id }
+    );
   }
   for (const lm of listMemberIds) {
     await run(

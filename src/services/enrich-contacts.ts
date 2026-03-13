@@ -116,9 +116,13 @@ export async function enrichSingleContact(
 
     await run(`UPDATE contacts SET ${sets.join(", ")} WHERE id = $id`, params);
 
-    // Reattach
+    // Reattach — also update activity company_id when contact moved to a new company
+    const newCompanyId = params.$companyId ?? null;
     for (const a of activityIds) {
-      await run(`UPDATE activities SET contact_id = $cid WHERE id = $aid`, { $cid: contactId, $aid: a.id });
+      await run(
+        `UPDATE activities SET contact_id = $cid${newCompanyId ? ", company_id = $newCo" : ""} WHERE id = $aid`,
+        newCompanyId ? { $cid: contactId, $newCo: newCompanyId, $aid: a.id } : { $cid: contactId, $aid: a.id }
+      );
     }
     for (const lm of listMemberIds) {
       await run(
