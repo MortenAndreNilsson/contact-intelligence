@@ -230,7 +230,7 @@ async function closeDatabase(): Promise<void> {
     if (connection) {
       // Force WAL checkpoint before closing to prevent corruption
       try { await connection.run("CHECKPOINT"); } catch { /* best effort */ }
-      connection.close();
+      // DuckDB Node API connections don't have close() — just null the reference
       connection = null;
     }
     if (instance) {
