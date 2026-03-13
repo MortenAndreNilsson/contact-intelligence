@@ -233,10 +233,8 @@ async function closeDatabase(): Promise<void> {
       // DuckDB Node API connections don't have close() — just null the reference
       connection = null;
     }
-    if (instance) {
-      await instance.close();
-      instance = null;
-    }
+    // DuckDB Node API instance may not have close() in all versions — null the reference
+    instance = null;
   } catch (err: any) {
     console.error("Error during DuckDB shutdown:", err.message);
   }

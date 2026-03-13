@@ -36,7 +36,7 @@ export class LMStudioProvider implements LLMProvider {
       maxTokens = 200,
       temperature = 0.1,
       jsonSchema,
-      timeout = 10000,
+      timeout = 60000,
     } = options;
 
     try {

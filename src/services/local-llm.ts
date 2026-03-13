@@ -187,7 +187,7 @@ export async function understandQuery(
     maxTokens: 200,
     temperature: 0.1,
     jsonSchema: CATEGORY_SCHEMA,
-    timeout: 10000,
+    timeout: 30000,
   });
   if (!raw) {
     return regexFallback(message);
@@ -261,7 +261,7 @@ export async function parseListFilter(input: string): Promise<FilterCriteria | n
       { role: "system", content: FILTER_SYSTEM_PROMPT },
       { role: "user", content: input },
     ],
-    { maxTokens: 300, temperature: 0.3, timeout: 15000 },
+    { maxTokens: 300, temperature: 0.3, timeout: 60000 },
   );
   if (!raw) return null;
 
@@ -324,7 +324,7 @@ export async function summarizeActivities(
       },
       { role: "user", content: activityText },
     ],
-    { maxTokens: 300, temperature: 0.3, timeout: 15000 },
+    { maxTokens: 300, temperature: 0.3, timeout: 60000 },
   );
 }
 
@@ -370,7 +370,7 @@ Be factual, concise, no hype. Northern European professional tone.`,
       },
       { role: "user", content: sections },
     ],
-    { maxTokens: 800, temperature: 0.3, timeout: 15000 },
+    { maxTokens: 800, temperature: 0.3, timeout: 60000 },
   );
 }
 
