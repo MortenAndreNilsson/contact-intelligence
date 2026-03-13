@@ -40,8 +40,10 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
   const schema = readFileSync(SCHEMA_PATH, "utf-8");
   const statements = schema
     .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"));
+    .map((s) =>
+      s.split("\n").filter((line) => !line.trimStart().startsWith("--")).join("\n").trim()
+    )
+    .filter((s) => s.length > 0);
 
   for (const stmt of statements) {
     await connection.run(stmt);
@@ -53,6 +55,27 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
     "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'lighthouse-view'",
     "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS enrich_skip BOOLEAN DEFAULT FALSE",
     "CREATE TABLE IF NOT EXISTS messages (id VARCHAR PRIMARY KEY, title VARCHAR, channel VARCHAR NOT NULL, status VARCHAR DEFAULT 'draft', contact_id VARCHAR, company_id VARCHAR, recipient_name VARCHAR, recipient_context VARCHAR, tone VARCHAR, objective VARCHAR, content_references VARCHAR, additional_context VARCHAR, provider VARCHAR, prompt VARCHAR, draft_content VARCHAR, final_content VARCHAR, subject_line VARCHAR, created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR), updated_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR))",
+    // G6: Journey columns on companies
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS journey_stage VARCHAR",
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS journey_override BOOLEAN DEFAULT false",
+    // G6: Maturity snapshots table (drop first to fix company_id INTEGER→VARCHAR)
+    "DROP TABLE IF EXISTS maturity_snapshots",
+    `CREATE TABLE IF NOT EXISTS maturity_snapshots (
+  id VARCHAR PRIMARY KEY,
+  company_id VARCHAR NOT NULL,
+  snapshot_date DATE NOT NULL,
+  trigger_type VARCHAR NOT NULL,
+  total_respondents INTEGER DEFAULT 0,
+  beginner_count INTEGER DEFAULT 0,
+  developing_count INTEGER DEFAULT 0,
+  intermediate_count INTEGER DEFAULT 0,
+  advanced_count INTEGER DEFAULT 0,
+  leader_count INTEGER DEFAULT 0,
+  avg_score REAL,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`,
+    "CREATE INDEX IF NOT EXISTS idx_snapshots_company ON maturity_snapshots(company_id)",
   ];
   for (const m of migrations) {
     await connection.run(m);

@@ -78,7 +78,7 @@ export function MessageDraftCard({ message }: { message: Message }) {
             <button class="btn btn-sm" type="button" x-on:click="showTones = !showTones">
               🎯 Adjust tone
             </button>
-            <div x-show="showTones" x-on:click.outside="showTones = false" style="position: absolute; top: 100%; left: 0; background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-xs); z-index: 10; display: flex; gap: 4px;">
+            <div x-show="showTones" {...{"x-on:click.outside": "showTones = false"}} style="position: absolute; top: 100%; left: 0; background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-xs); z-index: 10; display: flex; gap: 4px;">
               {(["professional", "warm", "direct", "casual"] as const).map((t) => (
                 <button
                   class="badge badge-green"

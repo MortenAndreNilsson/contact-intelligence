@@ -148,7 +148,7 @@ export function MessageComposeCard({
                     placeholder="Paste URL or snippet"
                     class="input"
                     style="flex: 1"
-                    x-on:keydown.enter.prevent="if (newUrl.trim()) { refs.push({ url: newUrl.trim() }); newUrl = ''; }"
+                    {...{"x-on:keydown.enter.prevent": "if (newUrl.trim()) { refs.push({ url: newUrl.trim() }); newUrl = ''; }"}}
                   />
                   <button
                     type="button"

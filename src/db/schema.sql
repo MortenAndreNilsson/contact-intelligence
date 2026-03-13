@@ -143,4 +143,23 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_contact ON messages(contact_id);
 CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel);
-CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status)
+CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);
+
+-- AI Maturity Journey (G6)
+CREATE TABLE IF NOT EXISTS maturity_snapshots (
+  id VARCHAR PRIMARY KEY,
+  company_id VARCHAR NOT NULL,
+  snapshot_date DATE NOT NULL,
+  trigger_type VARCHAR NOT NULL,
+  total_respondents INTEGER DEFAULT 0,
+  beginner_count INTEGER DEFAULT 0,
+  developing_count INTEGER DEFAULT 0,
+  intermediate_count INTEGER DEFAULT 0,
+  advanced_count INTEGER DEFAULT 0,
+  leader_count INTEGER DEFAULT 0,
+  avg_score REAL,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_company ON maturity_snapshots(company_id)
