@@ -134,6 +134,14 @@ export function ContactProfileCard({
           </div>
           <div class="flex gap-xs items-center">
             <button
+              class="btn btn-sm"
+              hx-get={`/messages/new?contact_id=${contact.id}`}
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+            >
+              ✉ Write message
+            </button>
+            <button
               class="period-btn"
               style="font-size: 0.7rem; padding: 0.3rem 0.6rem"
               hx-post={`/contacts/${contact.id}/enrich`}

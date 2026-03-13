@@ -505,6 +505,40 @@ export function Layout({ children, title }: { children: Child; title?: string })
           ::-webkit-scrollbar { width: 6px; }
           ::-webkit-scrollbar-track { background: transparent; }
           ::-webkit-scrollbar-thumb { background: var(--color-surface-hover); border-radius: 3px; }
+
+          /* Form elements for message writer */
+          .input {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            color: var(--color-text);
+            padding: var(--space-xs);
+            font-family: inherit;
+            font-size: 0.875rem;
+          }
+          .input:focus {
+            outline: none;
+            border-color: var(--visma-turquoise);
+          }
+          .btn {
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            background: var(--color-bg-card);
+            color: var(--color-text);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: inherit;
+          }
+          .btn:hover { border-color: var(--visma-turquoise); }
+          .btn-sm { padding: 4px 8px; font-size: 0.75rem; }
+          .btn-primary {
+            background: var(--visma-turquoise);
+            color: var(--color-bg);
+            border-color: var(--visma-turquoise);
+            font-weight: 600;
+          }
+          .btn-primary:hover { opacity: 0.9; }
         `}</style>
       </head>
       <body>
@@ -517,6 +551,7 @@ export function Layout({ children, title }: { children: Child; title?: string })
             <button class="nav-btn" hx-get="/contacts" hx-target="#canvas" hx-swap="innerHTML">Contacts</button>
             <button class="nav-btn" hx-get="/analytics/articles" hx-target="#canvas" hx-swap="innerHTML">Articles</button>
             <button class="nav-btn" hx-get="/analytics/surveys" hx-target="#canvas" hx-swap="innerHTML">Surveys</button>
+            <button class="nav-btn" hx-get="/messages" hx-target="#canvas" hx-swap="innerHTML">Messages</button>
           </nav>
         </header>
         <div class="app-body">

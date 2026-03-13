@@ -5,6 +5,9 @@ function typeColor(type: string): string {
     case "survey_completed": return "var(--visma-turquoise)";
     case "note_added": return "var(--visma-orange)";
     case "article_view": return "var(--visma-lime)";
+    case "outreach_email": return "var(--visma-blue, #3B82F6)";
+    case "outreach_slack": return "var(--visma-purple, #8B5CF6)";
+    case "outreach_linkedin": return "var(--visma-blue, #3B82F6)";
     default: return "var(--color-text-muted)";
   }
 }
@@ -14,6 +17,9 @@ function typeBadgeClass(type: string): string {
     case "survey_completed": return "badge badge-turquoise";
     case "note_added": return "badge badge-orange";
     case "article_view": return "badge badge-lime";
+    case "outreach_email": return "badge badge-green";
+    case "outreach_slack": return "badge badge-green";
+    case "outreach_linkedin": return "badge badge-green";
     default: return "badge badge-green";
   }
 }
@@ -23,6 +29,9 @@ function typeLabel(type: string): string {
     case "survey_completed": return "Survey";
     case "note_added": return "Note";
     case "article_view": return "Article";
+    case "outreach_email": return "Email sent";
+    case "outreach_slack": return "Slack sent";
+    case "outreach_linkedin": return "LinkedIn sent";
     default: return type.replace(/_/g, " ");
   }
 }
