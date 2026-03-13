@@ -306,7 +306,14 @@ app.post("/companies/:id/research", async (c) => {
 
     if (result) {
       const fields: Record<string, unknown> = {};
-      if (result.description) fields.description = result.description;
+      if (result.description) {
+        if (company.description) {
+          // Merge: keep existing context, append research as company background
+          fields.description = `${company.description}\n\n---\n\n${result.description}`;
+        } else {
+          fields.description = result.description;
+        }
+      }
       if (result.industry && !company.industry) fields.industry = result.industry;
       if (result.country && !company.country) fields.country = result.country;
       if (result.size_bucket && !company.size_bucket) fields.size_bucket = result.size_bucket;
