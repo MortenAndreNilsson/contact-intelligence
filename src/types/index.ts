@@ -294,3 +294,54 @@ export interface CompanyEngagement {
   activity_last_30d: number;
   trend: "rising" | "stable" | "cooling";
 }
+
+// ========== Messages ==========
+
+export type MessageChannel = "email" | "slack" | "linkedin";
+export type MessageTone = "professional" | "warm" | "direct" | "casual";
+export type MessageStatus = "draft" | "completed";
+
+export interface ContentReference {
+  url?: string;
+  title?: string;
+  snippet?: string;
+}
+
+export interface Message {
+  id: string;
+  title: string | null;
+  channel: MessageChannel;
+  status: MessageStatus;
+  contact_id: string | null;
+  company_id: string | null;
+  recipient_name: string | null;
+  recipient_context: string | null;
+  tone: MessageTone | null;
+  objective: string | null;
+  content_references: ContentReference[];
+  additional_context: string | null;
+  provider: string | null;
+  prompt: string | null;
+  draft_content: string | null;
+  final_content: string | null;
+  subject_line: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MessageRow extends Omit<Message, "content_references"> {
+  content_references: string | null; // JSON string, parsed by service
+}
+
+export interface MessageInput {
+  channel: MessageChannel;
+  contact_id?: string;
+  company_id?: string;
+  recipient_name?: string;
+  recipient_context?: string;
+  tone?: MessageTone;
+  objective?: string;
+  content_references?: ContentReference[];
+  additional_context?: string;
+  provider?: string;
+}
