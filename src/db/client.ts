@@ -52,6 +52,7 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
     "ALTER TABLE companies ADD COLUMN IF NOT EXISTS description VARCHAR",
     "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'lighthouse-view'",
     "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS enrich_skip BOOLEAN DEFAULT FALSE",
+    "CREATE TABLE IF NOT EXISTS messages (id VARCHAR PRIMARY KEY, title VARCHAR, channel VARCHAR NOT NULL, status VARCHAR DEFAULT 'draft', contact_id VARCHAR, company_id VARCHAR, recipient_name VARCHAR, recipient_context VARCHAR, tone VARCHAR, objective VARCHAR, content_references VARCHAR, additional_context VARCHAR, provider VARCHAR, prompt VARCHAR, draft_content VARCHAR, final_content VARCHAR, subject_line VARCHAR, created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR), updated_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR))",
   ];
   for (const m of migrations) {
     await connection.run(m);

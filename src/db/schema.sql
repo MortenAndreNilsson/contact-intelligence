@@ -117,4 +117,30 @@ CREATE TABLE IF NOT EXISTS survey_metadata (
 );
 
 CREATE INDEX IF NOT EXISTS idx_survey_responses_email ON survey_responses(email);
-CREATE INDEX IF NOT EXISTS idx_survey_responses_slug ON survey_responses(slug)
+CREATE INDEX IF NOT EXISTS idx_survey_responses_slug ON survey_responses(slug);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id VARCHAR PRIMARY KEY,
+  title VARCHAR,
+  channel VARCHAR NOT NULL,
+  status VARCHAR DEFAULT 'draft',
+  contact_id VARCHAR,
+  company_id VARCHAR,
+  recipient_name VARCHAR,
+  recipient_context VARCHAR,
+  tone VARCHAR,
+  objective VARCHAR,
+  content_references VARCHAR,
+  additional_context VARCHAR,
+  provider VARCHAR,
+  prompt VARCHAR,
+  draft_content VARCHAR,
+  final_content VARCHAR,
+  subject_line VARCHAR,
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR),
+  updated_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_contact ON messages(contact_id);
+CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel);
+CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status)
