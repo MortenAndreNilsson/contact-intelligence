@@ -71,7 +71,7 @@ export async function listCompanies(opts?: { query?: string; industry?: string; 
   }));
 }
 
-export async function updateCompany(id: string, fields: Partial<Pick<Company, "name" | "domain" | "industry" | "size_bucket" | "country" | "notes" | "description" | "tags">>): Promise<void> {
+export async function updateCompany(id: string, fields: Partial<Pick<Company, "name" | "domain" | "industry" | "size_bucket" | "country" | "notes" | "description" | "tags">> & { briefing?: string; briefing_at?: string }): Promise<void> {
   const sets: string[] = [];
   const params: Record<string, unknown> = { $id: id };
 
@@ -83,6 +83,8 @@ export async function updateCompany(id: string, fields: Partial<Pick<Company, "n
   if (fields.notes !== undefined) { sets.push("notes = $notes"); params.$notes = fields.notes; }
   if (fields.description !== undefined) { sets.push("description = $description"); params.$description = fields.description; }
   if (fields.tags !== undefined) { sets.push("tags = $tags"); params.$tags = JSON.stringify(fields.tags); }
+  if (fields.briefing !== undefined) { sets.push("briefing = $briefing"); params.$briefing = fields.briefing; }
+  if (fields.briefing_at !== undefined) { sets.push("briefing_at = $briefingAt"); params.$briefingAt = fields.briefing_at; }
 
   if (sets.length === 0) return;
   sets.push("updated_at = CAST(current_timestamp AS VARCHAR)");

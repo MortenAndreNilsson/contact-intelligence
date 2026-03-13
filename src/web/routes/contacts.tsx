@@ -250,6 +250,9 @@ app.post("/contacts/:id/briefing", async (c) => {
     );
   }
 
+  // Persist briefing to DB for backup and future display
+  await updateContact(id, { briefing, briefing_at: new Date().toISOString() });
+
   const summary = await summarizeActivities(activities, entityName);
   return c.html(
     <div>

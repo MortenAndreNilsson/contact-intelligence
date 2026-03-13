@@ -76,6 +76,11 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )`,
     "CREATE INDEX IF NOT EXISTS idx_snapshots_company ON maturity_snapshots(company_id)",
+    // Briefing storage — persist generated briefings so they survive restarts and appear in backups
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS briefing VARCHAR",
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS briefing_at VARCHAR",
+    "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS briefing VARCHAR",
+    "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS briefing_at VARCHAR",
   ];
   for (const m of migrations) {
     await connection.run(m);
