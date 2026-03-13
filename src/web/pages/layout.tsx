@@ -552,6 +552,7 @@ export function Layout({ children, title }: { children: Child; title?: string })
             <button class="nav-btn" hx-get="/analytics/articles" hx-target="#canvas" hx-swap="innerHTML">Articles</button>
             <button class="nav-btn" hx-get="/analytics/surveys" hx-target="#canvas" hx-swap="innerHTML">Surveys</button>
             <button class="nav-btn" hx-get="/messages" hx-target="#canvas" hx-swap="innerHTML">Messages</button>
+            <button class="nav-btn" hx-get="/sync/status" hx-target="#canvas" hx-swap="innerHTML">Sync</button>
             <button class="nav-btn" hx-get="/backup" hx-target="#canvas" hx-swap="innerHTML">Backup</button>
           </nav>
         </header>
