@@ -176,7 +176,9 @@ export async function enrichContacts(): Promise<EnrichResult> {
         console.log(`  enriched: ${contact.email} → ${result.info?.name ?? "?"} @ ${result.info?.organization ?? "?"}`);
       } else {
         failed++;
-        console.log(`  not found: ${contact.email}`);
+        // Auto-skip contacts not found in Discovery Engine so they don't retry every sync
+        await run(`UPDATE contacts SET enrich_skip = TRUE WHERE id = $id`, { $id: contact.id });
+        console.log(`  not found: ${contact.email} (auto-skipped)`);
       }
     } catch (err: any) {
       failed++;

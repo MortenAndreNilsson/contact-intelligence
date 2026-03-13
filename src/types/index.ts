@@ -8,6 +8,8 @@ export interface Company {
   notes: string | null;
   description: string | null;
   tags: string[];
+  briefing: string | null;
+  briefing_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +31,8 @@ export interface Contact {
   consent_date: string | null;
   tags: string[];
   notes: string | null;
+  briefing: string | null;
+  briefing_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -93,6 +97,8 @@ export interface CompanyRow {
   notes: string | null;
   description: string | null;
   tags: string;
+  briefing: string | null;
+  briefing_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -344,4 +350,46 @@ export interface MessageInput {
   content_references?: ContentReference[];
   additional_context?: string;
   provider?: string;
+}
+
+// --- G6: AI Maturity Journey ---
+
+export type JourneyStage = "awareness" | "assessed" | "workshop" | "courses" | "custom_engagement";
+
+export interface MaturitySnapshot {
+  id: string;
+  company_id: number;
+  snapshot_date: string;
+  trigger: string;
+  total_respondents: number;
+  beginner_count: number;
+  developing_count: number;
+  intermediate_count: number;
+  advanced_count: number;
+  leader_count: number;
+  avg_score: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface JourneyOverview {
+  awareness: number;
+  assessed: number;
+  workshop: number;
+  courses: number;
+  custom_engagement: number;
+  total: number;
+}
+
+// --- G7: Engagement Signals ---
+
+export type SignalType = "new_survey" | "score_change" | "content_binge" | "cooling_off" | "new_person";
+
+export interface Signal {
+  type: SignalType;
+  company_id: number;
+  company_name: string;
+  title: string;
+  detail: string;
+  detected_at: string;
 }

@@ -165,20 +165,43 @@ export function ContactProfileCard({
           <InlineSummary summary={summary ?? null} />
         </div>
 
-        {/* Briefing button */}
-        <div style="margin-bottom: var(--space-sm)">
-          <button
-            class="period-btn"
-            style="font-size: 0.75rem; padding: 0.35rem 0.75rem"
-            hx-post={`/contacts/${contact.id}/briefing`}
-            hx-target="#canvas"
-            hx-swap="innerHTML"
-            hx-disabled-elt="this"
-          >
-            <span class="btn-label">Get Briefing</span>
-            <span class="btn-loading"><span class="spinner"></span></span>
-          </button>
-        </div>
+        {/* Briefing — show stored or offer to generate */}
+        {contact.briefing ? (
+          <div style="margin-bottom: var(--space-sm)">
+            <div class="card-label mb-xs" style="font-size: 0.65rem; display: flex; align-items: center; gap: 0.5rem">
+              Briefing
+              {contact.briefing_at && <span class="text-xs text-muted" style="text-transform: none; letter-spacing: 0; font-weight: 400">{new Date(contact.briefing_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+              <button
+                class="period-btn"
+                style="font-size: 0.65rem; padding: 0.2rem 0.5rem; margin-left: auto"
+                hx-post={`/contacts/${contact.id}/briefing`}
+                hx-target="#canvas"
+                hx-swap="innerHTML"
+                hx-disabled-elt="this"
+              >
+                <span class="btn-label">Refresh</span>
+                <span class="btn-loading"><span class="spinner"></span></span>
+              </button>
+            </div>
+            <div class="text-sm text-secondary" style="line-height: 1.7; padding: var(--space-sm); background: var(--color-surface-elevated); border-radius: var(--radius-md); border-left: 3px solid var(--visma-orange); white-space: pre-line">
+              {contact.briefing}
+            </div>
+          </div>
+        ) : (
+          <div style="margin-bottom: var(--space-sm)">
+            <button
+              class="period-btn"
+              style="font-size: 0.75rem; padding: 0.35rem 0.75rem"
+              hx-post={`/contacts/${contact.id}/briefing`}
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+            >
+              <span class="btn-label">Get Briefing</span>
+              <span class="btn-loading"><span class="spinner"></span></span>
+            </button>
+          </div>
+        )}
 
         {/* Notes — editable */}
         <div class="mt-sm">

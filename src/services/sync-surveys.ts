@@ -227,11 +227,12 @@ export async function syncEtCmsSurveys(): Promise<SyncResult> {
 
     // Upsert survey metadata (title from published-surveys)
     const title = fields.title || null;
+    const now = new Date().toISOString();
     await run(
       `INSERT INTO survey_metadata (slug, title, source, synced_at)
-       VALUES ($slug, $title, 'et-cms', CAST(current_timestamp AS VARCHAR))
-       ON CONFLICT (slug) DO UPDATE SET title = $title, synced_at = CAST(current_timestamp AS VARCHAR)`,
-      { $slug: docSlug, $title: title }
+       VALUES ($slug, $title, 'et-cms', $now)
+       ON CONFLICT (slug) DO UPDATE SET title = $title, synced_at = $now`,
+      { $slug: docSlug, $title: title, $now: now }
     );
   }
 
