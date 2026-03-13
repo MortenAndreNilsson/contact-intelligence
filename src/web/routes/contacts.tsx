@@ -154,6 +154,9 @@ app.patch("/contacts/:id", async (c) => {
       fields[key] = String(body[key]).trim() || null;
     }
   }
+  if ("enrich_skip" in body) {
+    fields.enrich_skip = body.enrich_skip === "true" || body.enrich_skip === "1";
+  }
   if ("tags" in body) {
     try {
       fields.tags = JSON.parse(String(body.tags));
