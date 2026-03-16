@@ -4,7 +4,7 @@ import { ContactProfileCard } from "../cards/contact-profile.tsx";
 import { listContacts, getContact, getContactByEmail, updateContact } from "../../services/contacts.ts";
 import { listActivities, createActivity } from "../../services/activities.ts";
 import { enrichSingleContact } from "../../services/enrich-contacts.ts";
-import { summarizeActivities, generateBriefing } from "../../services/local-llm.ts";
+import { summarizeActivities, generateBriefing } from "../../services/llm-briefings.ts";
 import { BriefingCard } from "../cards/briefing-card.tsx";
 import type { ContactWithDetails } from "../../types/index.ts";
 

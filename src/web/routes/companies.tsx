@@ -4,7 +4,7 @@ import { CompanyProfileCard } from "../cards/company-profile.tsx";
 import { listCompanies, getCompany, updateCompany, createCompany } from "../../services/companies.ts";
 import { listContacts } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
-import { summarizeActivities, generateBriefing } from "../../services/local-llm.ts";
+import { summarizeActivities, generateBriefing } from "../../services/llm-briefings.ts";
 import { BriefingCard } from "../cards/briefing-card.tsx";
 import type { CompanyWithStats } from "../../types/index.ts";
 
