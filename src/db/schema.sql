@@ -162,4 +162,20 @@ CREATE TABLE IF NOT EXISTS maturity_snapshots (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_snapshots_company ON maturity_snapshots(company_id)
+CREATE INDEX IF NOT EXISTS idx_snapshots_company ON maturity_snapshots(company_id);
+
+-- G7: Engagement Signals
+CREATE TABLE IF NOT EXISTS signals (
+  id VARCHAR PRIMARY KEY,
+  signal_type VARCHAR NOT NULL,
+  company_id VARCHAR NOT NULL,
+  title VARCHAR NOT NULL,
+  detail VARCHAR,
+  detected_at VARCHAR NOT NULL,
+  dismissed BOOLEAN DEFAULT false,
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
+);
+
+CREATE INDEX IF NOT EXISTS idx_signals_company ON signals(company_id);
+CREATE INDEX IF NOT EXISTS idx_signals_type ON signals(signal_type);
+CREATE INDEX IF NOT EXISTS idx_signals_dismissed ON signals(dismissed)
