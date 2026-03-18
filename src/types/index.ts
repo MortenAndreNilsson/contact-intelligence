@@ -10,6 +10,8 @@ export interface Company {
   tags: string[];
   briefing: string | null;
   briefing_at: string | null;
+  journey_stage: JourneyStage | null;
+  journey_override: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +33,8 @@ export interface Contact {
   consent_date: string | null;
   tags: string[];
   notes: string | null;
+  fluency_level: FluencyLevel | null;
+  fluency_certified_at: string | null;
   briefing: string | null;
   briefing_at: string | null;
   created_at: string;
@@ -99,6 +103,8 @@ export interface CompanyRow {
   tags: string;
   briefing: string | null;
   briefing_at: string | null;
+  journey_stage: string | null;
+  journey_override: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -273,6 +279,8 @@ export interface QueryUnderstanding {
     domain?: string;
     industry?: string;
     country?: string;
+    stage?: string;
+    level?: string;
     days?: number;
     limit?: number;
     listName?: string;
@@ -354,13 +362,15 @@ export interface MessageInput {
 
 // --- G6: AI Maturity Journey ---
 
-export type JourneyStage = "awareness" | "assessed" | "workshop" | "courses" | "custom_engagement";
+export type FluencyLevel = "explorer" | "practitioner" | "integrator" | "architect" | "master";
+
+export type JourneyStage = "exploring" | "assessing" | "training" | "scaling" | "self_sustaining";
 
 export interface MaturitySnapshot {
   id: string;
-  company_id: number;
+  company_id: string;
   snapshot_date: string;
-  trigger: string;
+  trigger_type: string;
   total_respondents: number;
   beginner_count: number;
   developing_count: number;
@@ -373,12 +383,31 @@ export interface MaturitySnapshot {
 }
 
 export interface JourneyOverview {
-  awareness: number;
-  assessed: number;
-  workshop: number;
-  courses: number;
-  custom_engagement: number;
+  exploring: number;
+  assessing: number;
+  training: number;
+  scaling: number;
+  self_sustaining: number;
   total: number;
+}
+
+export interface CompanyJourney {
+  company_id: string;
+  company_name: string;
+  stage: JourneyStage | null;
+  stage_override: boolean;
+  fluency_distribution: Record<FluencyLevel, number>;
+  snapshots: MaturitySnapshot[];
+  total_contacts: number;
+}
+
+export interface FluencyDistribution {
+  explorer: number;
+  practitioner: number;
+  integrator: number;
+  architect: number;
+  master: number;
+  unset: number;
 }
 
 // --- G7: Engagement Signals ---
@@ -386,10 +415,13 @@ export interface JourneyOverview {
 export type SignalType = "new_survey" | "score_change" | "content_binge" | "cooling_off" | "new_person";
 
 export interface Signal {
-  type: SignalType;
-  company_id: number;
-  company_name: string;
+  id: string;
+  signal_type: SignalType;
+  company_id: string;
+  company_name?: string;
   title: string;
-  detail: string;
+  detail: string | null;
   detected_at: string;
+  dismissed: boolean;
+  created_at: string;
 }
