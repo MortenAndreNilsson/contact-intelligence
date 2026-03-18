@@ -81,6 +81,11 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
     "ALTER TABLE companies ADD COLUMN IF NOT EXISTS briefing_at VARCHAR",
     "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS briefing VARCHAR",
     "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS briefing_at VARCHAR",
+    // G6: Fluency level on contacts
+    "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS fluency_level VARCHAR",
+    "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS fluency_certified_at VARCHAR",
+    // G6: Migrate old journey_stage values to new names
+    "UPDATE companies SET journey_stage = CASE journey_stage WHEN 'awareness' THEN 'exploring' WHEN 'assessed' THEN 'assessing' WHEN 'workshop' THEN 'training' WHEN 'courses' THEN 'scaling' WHEN 'custom_engagement' THEN 'self_sustaining' ELSE journey_stage END WHERE journey_stage IS NOT NULL",
   ];
   for (const m of migrations) {
     await connection.run(m);
