@@ -76,6 +76,8 @@ const CATEGORY_SCHEMA = {
         limit: { type: "number" },
         listName: { type: "string" },
         slug: { type: "string" },
+        stage: { type: "string" },
+        level: { type: "string" },
       },
       additionalProperties: false,
     },
@@ -89,9 +91,9 @@ const CATEGORY_SCHEMA = {
 const CATEGORY_PROMPT = `You are a query classifier for a contact intelligence CRM. Classify the user message into one of these categories and extract entities.
 
 Categories:
-- view_data: user wants to see data (dashboard, articles, page views, surveys, engagement scores, lists overview)
+- view_data: user wants to see data (dashboard, articles, page views, surveys, engagement scores, lists overview, journey overview, signals feed)
 - entity_lookup: user wants to see a specific company, contact, list, or asks about a named entity ("show Visma", "who is Hanne?", "who works at Spotify?", "timeline for Acme", "survey dimensions for Visma")
-- action: user wants to DO something (run sync, enrich contacts, research a company)
+- action: user wants to DO something (run sync, enrich contacts, research a company, set journey stage, set fluency level, take a snapshot)
 - admin: help, commands, sync status
 - unknown: cannot determine
 
@@ -111,6 +113,8 @@ Entity fields (include only those that apply):
 - limit: number of results as INTEGER ("top 5"=5)
 - listName: name of a specific list
 - slug: article slug
+- stage: journey stage (exploring, assessing, training, scaling, self_sustaining)
+- level: fluency level (explorer, practitioner, integrator, architect, master)
 
 IMPORTANT: days and limit MUST be numbers. Only include entity fields you are confident about.
 
@@ -127,6 +131,8 @@ function subClassifyViewData(msg: string): string {
   if (/\b(surveys|survey results|maturity|survey scores)\b/.test(lower)) return "surveys";
   if (/\b(engagement|who.s engaged|hot leads|rising|most active)\b/.test(lower)) return "engagement";
   if (/\b(lists|my lists|segments|segmentation|all lists)\b/.test(lower)) return "lists";
+  if (/\b(journey|journeys|maturity journey|company stages?)\b/.test(lower)) return "journey_overview";
+  if (/\b(signals?|alerts?|what.s new|what happened|notable)\b/.test(lower)) return "signals";
   return "dashboard"; // safe default for view_data
 }
 
@@ -136,6 +142,7 @@ function subClassifyEntityLookup(msg: string, entities: QueryUnderstanding["enti
   if (/\b(who works|contacts at|employees|people at|team at)\b/.test(lower)) return "contacts";
   if (/\b(dimensions?|breakdown|survey scores? for|survey.* for)\b/.test(lower)) return "dimensions";
   if (/\b(timeline|activity over time|history for)\b/.test(lower)) return "timeline";
+  if (/\b(journey|maturity journey)\b/.test(lower)) return "journey_company";
   if (entities.email) return "contact";
   // If we have a name, default to "lookup" (ambiguous — handler tries contact then company)
   if (entities.name) return "lookup";
@@ -147,6 +154,9 @@ function subClassifyAction(msg: string): string {
   if (/\b(briefing|brief me|brief on|get briefing)\b/.test(lower)) return "briefing";
   if (/\b(research|deep dive|deep research|profile)\b/.test(lower)) return "research";
   if (/\b(enrich|enrichment|look ?up everyone)\b/.test(lower)) return "enrich";
+  if (/\b(set.*to\s+(exploring|assessing|training|scaling|self.sustaining))\b/.test(lower)) return "journey_set";
+  if (/\b(set.*to\s+(explorer|practitioner|integrator|architect|master))\b/.test(lower)) return "fluency_set";
+  if (/\b(snapshot|take snapshot|create snapshot)\b/.test(lower)) return "journey_snapshot";
   if (/\b(sync|synchronize|refresh|pull data|update data|fetch data)\b/.test(lower)) return "sync";
   return "sync"; // safe default
 }
@@ -370,6 +380,34 @@ export function regexFallback(msg: string): QueryUnderstanding {
     return { intent: "lists", entities: {}, confidence: 0.9 };
   }
 
+  // Journey
+  if (/\b(journey|maturity journey|company stages?)\b/.test(slashStripped) && !/\b(set|to)\b/.test(slashStripped)) {
+    return { intent: "journey_overview", entities: {}, confidence: 0.9 };
+  }
+
+  // Signals
+  if (/\b(signals?|alerts?|what.s new|what happened)\b/.test(slashStripped)) {
+    return { intent: "signals", entities: {}, confidence: 0.9 };
+  }
+
+  // Journey set: "set Visma to training"
+  const journeySetMatch = slashStripped.match(/set\s+(.+?)\s+to\s+(exploring|assessing|training|scaling|self.sustaining)/);
+  if (journeySetMatch) {
+    return { intent: "journey_set", entities: { name: journeySetMatch[1]!.trim(), stage: journeySetMatch[2] }, confidence: 0.9 };
+  }
+
+  // Fluency set: "set Hanne to practitioner"
+  const fluencySetMatch = slashStripped.match(/set\s+(.+?)\s+to\s+(explorer|practitioner|integrator|architect|master)/);
+  if (fluencySetMatch) {
+    return { intent: "fluency_set", entities: { name: fluencySetMatch[1]!.trim(), level: fluencySetMatch[2] }, confidence: 0.9 };
+  }
+
+  // Snapshot
+  if (/\bsnapshot\b/.test(slashStripped)) {
+    const name = slashStripped.replace(/snapshot\s*/, "").trim();
+    return { intent: "journey_snapshot", entities: name ? { name } : {}, confidence: 0.9 };
+  }
+
   // Help
   if (/\b(help|commands|what can you do|how does this work)\b/.test(slashStripped)) {
     return { intent: "help", entities: {}, confidence: 0.9 };
@@ -441,6 +479,18 @@ export function regexFallback(msg: string): QueryUnderstanding {
   }
   if (slashStripped.startsWith("briefing ")) {
     return { intent: "briefing", entities: { name: slashStripped.slice(9).trim() }, confidence: 1.0 };
+  }
+  if (slashStripped === "journey" || slashStripped === "journeys") {
+    return { intent: "journey_overview", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped.startsWith("journey ")) {
+    return { intent: "journey_company", entities: { name: slashStripped.slice(8).trim() }, confidence: 1.0 };
+  }
+  if (slashStripped === "signals") {
+    return { intent: "signals", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped.startsWith("snapshot ")) {
+    return { intent: "journey_snapshot", entities: { name: slashStripped.slice(9).trim() }, confidence: 1.0 };
   }
 
   return { intent: "unknown", entities: {}, confidence: 0 };
