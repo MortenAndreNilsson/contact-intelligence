@@ -9,6 +9,8 @@
  */
 
 import { queryAll, queryOne, run, generateId } from "../db/client.ts";
+import { recomputeJourneyStages, autoSnapshotIfNeeded } from "./journey-service.ts";
+import { detectSignals } from "./signals-service.ts";
 
 async function materializeCompanies(): Promise<number> {
   const domains = await queryAll<{ domain: string }>(
@@ -220,6 +222,9 @@ export interface MaterializeResult {
   cmsActivities: number;
   surveyActivities: number;
   activitiesRepaired: number;
+  journeyUpdated: number;
+  snapshotsCreated: number;
+  signalsDetected: number;
 }
 
 export async function materialize(): Promise<MaterializeResult> {
@@ -228,6 +233,39 @@ export async function materialize(): Promise<MaterializeResult> {
   const cmsActivities = await materializeCmsActivities();
   const surveyActivities = await materializeSurveyActivities();
   const activitiesRepaired = await repairActivityCompanies();
+
+  // G6: Recompute journey stages for all non-override companies
+  let journeyUpdated = 0;
+  try {
+    journeyUpdated = await recomputeJourneyStages();
+  } catch (err: any) {
+    console.warn("Journey stage computation error:", err.message);
+  }
+
+  // G6: Auto-snapshot companies with new survey data
+  let snapshotsCreated = 0;
+  if (surveyActivities > 0) {
+    const companiesWithSurveys = await queryAll<{ company_id: string }>(
+      `SELECT DISTINCT company_id FROM activities WHERE activity_type = 'survey_completed' AND company_id IS NOT NULL`
+    );
+    for (const c of companiesWithSurveys) {
+      try {
+        const created = await autoSnapshotIfNeeded(c.company_id);
+        if (created) snapshotsCreated++;
+      } catch (err: any) {
+        console.warn(`Snapshot error for ${c.company_id}:`, err.message);
+      }
+    }
+  }
+
+  // G7: Detect new signals
+  let signalsDetected = 0;
+  try {
+    const signals = await detectSignals();
+    signalsDetected = signals.length;
+  } catch (err: any) {
+    console.warn("Signal detection error:", err.message);
+  }
 
   const total = companies + contacts + cmsActivities + surveyActivities;
 
@@ -238,5 +276,5 @@ export async function materialize(): Promise<MaterializeResult> {
     { $id: generateId(), $processed: total, $created: total }
   );
 
-  return { companies, contacts, cmsActivities, surveyActivities, activitiesRepaired };
+  return { companies, contacts, cmsActivities, surveyActivities, activitiesRepaired, journeyUpdated, snapshotsCreated, signalsDetected };
 }

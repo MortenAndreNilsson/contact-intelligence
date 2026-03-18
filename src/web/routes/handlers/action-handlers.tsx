@@ -38,7 +38,7 @@ export const handleSync: IntentHandler = async () => {
 
   try {
     const matResult = await materialize();
-    steps.push({ label: "Materialize", ok: true, summary: `+${matResult.companies} companies, +${matResult.contacts} contacts, +${matResult.cmsActivities + matResult.surveyActivities} activities` });
+    steps.push({ label: "Materialize", ok: true, summary: `+${matResult.companies} companies, +${matResult.contacts} contacts, +${matResult.cmsActivities + matResult.surveyActivities} activities, ${matResult.journeyUpdated} stages, ${matResult.snapshotsCreated} snapshots, ${matResult.signalsDetected} signals` });
   } catch (err: any) {
     steps.push({ label: "Materialize", ok: false, summary: err.message });
   }
