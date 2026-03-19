@@ -25,6 +25,12 @@ export function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/enrich</span> — enrich contacts via Discovery Engine</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/research [company]</span> — deep research a company via Gemini</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/briefing [company/contact]</span> — generate CRM briefing via LM Studio</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/journey</span> — AI maturity journey overview</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/journey [company]</span> — company journey detail</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/signals</span> — engagement signals feed</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">set [company] to [stage]</span> — set journey stage</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">set [contact] to [level]</span> — set fluency level</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">snapshot [company]</span> — create maturity snapshot</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/help</span> — show this list</div>
         <div class="text-xs text-muted mt-sm">You can also type naturally: "who works at Visma?", "show me their survey scores", "any Norwegian software companies?"</div>
       </div>

@@ -8,6 +8,9 @@ import { getCookie, setCookie } from "hono/cookie";
 import { understandQuery, getHistory, addTurn } from "../../services/local-llm.ts";
 import { dispatchIntent } from "./chat-handlers.tsx";
 import { HelpCard } from "./chat-handlers.tsx";
+import { dismissSignal } from "../../services/signals-service.ts";
+import { getActiveSignals } from "../../services/signals-service.ts";
+import { SignalsFeedCard } from "../cards/signals-feed.tsx";
 
 const app = new Hono();
 
@@ -41,6 +44,13 @@ app.post("/chat", async (c) => {
   });
 
   return c.html(result.html);
+});
+
+app.post("/signals/:id/dismiss", async (c) => {
+  const id = c.req.param("id");
+  await dismissSignal(id);
+  const signals = await getActiveSignals();
+  return c.html(<SignalsFeedCard signals={signals} />);
 });
 
 export default app;

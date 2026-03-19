@@ -16,6 +16,8 @@ import { handleDashboard, handleArticles, handleViews, handleSurveys, handleEnga
 import { handleCompany, handleContact, handleContacts, handleDimensions, handleTimeline, handleLookup, handleBriefing } from "./handlers/entity-handlers.tsx";
 import { handleSync, handleEnrich, handleResearch } from "./handlers/action-handlers.tsx";
 import { handleHelp, handleSyncStatus, handleUnknown } from "./handlers/admin-handlers.tsx";
+import { handleJourneyOverview, handleJourneyCompany, handleJourneySet, handleJourneySnapshot, handleFluencySet } from "./handlers/journey-handlers.tsx";
+import { handleSignals } from "./handlers/signal-handlers.tsx";
 
 // Re-export HelpCard for chat.tsx
 export { HelpCard } from "./handlers/admin-handlers.tsx";
@@ -79,6 +81,14 @@ export const handlers: Record<string, IntentHandler> = {
   sync: handleSync,
   enrich: handleEnrich,
   research: handleResearch,
+  // journey (G6)
+  journey_overview: handleJourneyOverview,
+  journey_company: handleJourneyCompany,
+  journey_set: handleJourneySet,
+  journey_snapshot: handleJourneySnapshot,
+  fluency_set: handleFluencySet,
+  // signals (G7)
+  signals: handleSignals,
   // admin
   help: handleHelp,
   sync_status: handleSyncStatus,
