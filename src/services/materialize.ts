@@ -12,12 +12,19 @@ import { queryAll, queryOne, run, generateId } from "../db/client.ts";
 import { recomputeJourneyStages, autoSnapshotIfNeeded } from "./journey-service.ts";
 import { detectSignals } from "./signals-service.ts";
 
+/** Domains to exclude from materialization (simulated/test data) */
+const BLOCKED_DOMAINS = ["test.local"];
+
+function domainBlockFilter(emailColumn: string): string {
+  return BLOCKED_DOMAINS.map((d) => `AND ${emailColumn} NOT LIKE '%@${d}'`).join(" ");
+}
+
 async function materializeCompanies(): Promise<number> {
   const domains = await queryAll<{ domain: string }>(
     `SELECT DISTINCT domain FROM (
-      SELECT split_part(userEmail, '@', 2) AS domain FROM cms_events WHERE userEmail IS NOT NULL
+      SELECT split_part(userEmail, '@', 2) AS domain FROM cms_events WHERE userEmail IS NOT NULL ${domainBlockFilter("userEmail")}
       UNION
-      SELECT split_part(email, '@', 2) AS domain FROM survey_responses WHERE email IS NOT NULL
+      SELECT split_part(email, '@', 2) AS domain FROM survey_responses WHERE email IS NOT NULL ${domainBlockFilter("email")}
     )
     WHERE domain IS NOT NULL
       AND domain != ''
@@ -43,9 +50,9 @@ async function materializeCompanies(): Promise<number> {
 async function materializeContacts(): Promise<number> {
   const emails = await queryAll<{ email: string }>(
     `SELECT DISTINCT email FROM (
-      SELECT userEmail AS email FROM cms_events WHERE userEmail IS NOT NULL
+      SELECT userEmail AS email FROM cms_events WHERE userEmail IS NOT NULL ${domainBlockFilter("userEmail")}
       UNION
-      SELECT email FROM survey_responses WHERE email IS NOT NULL
+      SELECT email FROM survey_responses WHERE email IS NOT NULL ${domainBlockFilter("email")}
     )
     WHERE email IS NOT NULL
       AND email != ''
@@ -147,7 +154,8 @@ async function materializeSurveyActivities(): Promise<number> {
        SELECT source_ref FROM activities
        WHERE source IN ('survey_sync', 'survey_lighthouse', 'survey_etcms')
          AND source_ref IS NOT NULL
-     )`
+     )
+     ${domainBlockFilter("s.email")}`
   );
 
   let created = 0;
