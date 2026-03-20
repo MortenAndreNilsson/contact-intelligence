@@ -173,6 +173,13 @@ export async function understandQuery(
   message: string,
   history: ConversationTurn[] = [],
 ): Promise<QueryUnderstanding> {
+  // Fast path: slash commands and exact matches skip LLM entirely (~4s savings)
+  const trimmed = message.trim();
+  if (trimmed.startsWith("/") || /^(set |snapshot |search |memory |embed |backup)/.test(trimmed.toLowerCase())) {
+    const fast = regexFallback(trimmed);
+    if (fast.intent !== "unknown") return fast;
+  }
+
   if (!(await isAvailable())) {
     return regexFallback(message);
   }

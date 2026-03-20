@@ -66,8 +66,8 @@ app.get("/contacts/by-email/:email", async (c) => {
   }
 
   const activities = await listActivities({ contactId: contact.id, limit: 20 });
-  const summary = await summarizeActivities(activities, contact.name || contact.email);
-  const content = <ContactProfileCard contact={contact} activities={activities} summary={summary} />;
+  // Skip LLM summary on page load (adds ~4s latency). Use /briefing button for LLM analysis.
+  const content = <ContactProfileCard contact={contact} activities={activities} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
@@ -214,8 +214,7 @@ app.get("/contacts/:id", async (c) => {
   }
 
   const activities = await listActivities({ contactId: id, limit: 20 });
-  const summary = await summarizeActivities(activities, contact.name || contact.email);
-  const content = <ContactProfileCard contact={contact} activities={activities} summary={summary} />;
+  const content = <ContactProfileCard contact={contact} activities={activities} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
