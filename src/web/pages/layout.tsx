@@ -582,6 +582,10 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 { cmd: '/sync', desc: 'Show sync status' },
                 { cmd: '/enrich', desc: 'Enrich contacts via Discovery Engine' },
                 { cmd: '/research ', desc: 'Deep research a company via Gemini', hasArg: true },
+                { cmd: '/journey', desc: 'AI maturity journey overview' },
+                { cmd: '/journey ', desc: 'Company journey detail', hasArg: true },
+                { cmd: '/signals', desc: 'Engagement signals feed' },
+                { cmd: '/snapshot ', desc: 'Create maturity snapshot', hasArg: true },
                 { cmd: '/help', desc: 'Show available commands' }
               ],
               get filtered() {

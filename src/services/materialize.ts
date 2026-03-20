@@ -13,7 +13,7 @@ import { recomputeJourneyStages, autoSnapshotIfNeeded } from "./journey-service.
 import { detectSignals } from "./signals-service.ts";
 
 /** Domains to exclude from materialization (simulated/test data) */
-const BLOCKED_DOMAINS = ["test.local"];
+const BLOCKED_DOMAINS = ["test.local", "example.com", "com.dk"];
 
 function domainBlockFilter(emailColumn: string): string {
   return BLOCKED_DOMAINS.map((d) => `AND ${emailColumn} NOT LIKE '%@${d}'`).join(" ");
