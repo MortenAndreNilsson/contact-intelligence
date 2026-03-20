@@ -233,6 +233,15 @@ export async function understandQuery(
       default: intent = "unknown";
     }
 
+    // If LLM couldn't classify, or classified as a new journey/signal intent
+    // (where LLM entity extraction is unreliable), prefer regex fallback
+    const needsFallback = intent === "unknown"
+      || intent.startsWith("journey_") || intent === "fluency_set" || intent === "signals";
+    if (needsFallback) {
+      const fallback = regexFallback(message);
+      if (fallback.intent !== "unknown") return fallback;
+    }
+
     return {
       intent,
       entities,
@@ -380,8 +389,8 @@ export function regexFallback(msg: string): QueryUnderstanding {
     return { intent: "lists", entities: {}, confidence: 0.9 };
   }
 
-  // Journey
-  if (/\b(journey|maturity journey|company stages?)\b/.test(slashStripped) && !/\b(set|to)\b/.test(slashStripped)) {
+  // Journey (only bare "/journey" — "/journey Visma" is handled by slash commands below)
+  if (/^(journey|journeys|maturity journey|company stages?)$/.test(slashStripped)) {
     return { intent: "journey_overview", entities: {}, confidence: 0.9 };
   }
 
