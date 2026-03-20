@@ -1,9 +1,10 @@
 /**
- * Admin handlers — help, sync_status, unknown.
+ * Admin handlers — help, sync_status, unknown, refresh_summaries.
  * Minimal handlers + HelpCard component.
  */
 
 import type { IntentHandler } from "../chat-handlers.tsx";
+import { refreshAllSummaries } from "../../../services/summary-refresh.ts";
 
 export function HelpCard() {
   return (
@@ -31,6 +32,7 @@ export function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">set [company] to [stage]</span> — set journey stage</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">set [contact] to [level]</span> — set fluency level</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">snapshot [company]</span> — create maturity snapshot</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/refresh-summaries</span> — refresh all cached summaries via LLM</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/help</span> — show this list</div>
         <div class="text-xs text-muted mt-sm">You can also type naturally: "who works at Visma?", "show me their survey scores", "any Norwegian software companies?"</div>
       </div>
@@ -51,6 +53,39 @@ export const handleSyncStatus: IntentHandler = async () => {
     ),
     summary: "Showed sync status",
   };
+};
+
+export const handleRefreshSummaries: IntentHandler = async () => {
+  try {
+    const result = await refreshAllSummaries();
+    return {
+      html: (
+        <div class="card">
+          <div class="card-label mb-xs" style="color: var(--visma-turquoise)">Summaries Refreshed</div>
+          <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr)">
+            <div class="stat-box">
+              <div class="stat-value" style="font-size: 1.5rem; color: var(--visma-turquoise)">{result.companiesUpdated}</div>
+              <div class="stat-label">Companies</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" style="font-size: 1.5rem; color: var(--visma-turquoise)">{result.contactsUpdated}</div>
+              <div class="stat-label">Contacts</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" style="font-size: 1.5rem; color: var(--visma-coral)">{result.errors}</div>
+              <div class="stat-label">Errors</div>
+            </div>
+          </div>
+        </div>
+      ),
+      summary: `Refreshed ${result.companiesUpdated} companies + ${result.contactsUpdated} contacts`,
+    };
+  } catch (err: any) {
+    return {
+      html: <div class="card"><div class="text-sm" style="color: var(--visma-coral)">Refresh failed: {err.message}</div></div>,
+      summary: `Refresh failed: ${err.message}`,
+    };
+  }
 };
 
 export const handleUnknown: IntentHandler = async () => {

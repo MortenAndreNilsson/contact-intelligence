@@ -8,6 +8,7 @@ export interface Company {
   notes: string | null;
   description: string | null;
   tags: string[];
+  summary: string | null;
   briefing: string | null;
   briefing_at: string | null;
   journey_stage: JourneyStage | null;
@@ -33,6 +34,7 @@ export interface Contact {
   consent_date: string | null;
   tags: string[];
   notes: string | null;
+  summary: string | null;
   fluency_level: FluencyLevel | null;
   fluency_certified_at: string | null;
   briefing: string | null;
@@ -101,6 +103,7 @@ export interface CompanyRow {
   notes: string | null;
   description: string | null;
   tags: string;
+  summary: string | null;
   briefing: string | null;
   briefing_at: string | null;
   journey_stage: string | null;

@@ -502,6 +502,9 @@ export function regexFallback(msg: string): QueryUnderstanding {
   if (slashStripped.startsWith("journey ")) {
     return { intent: "journey_company", entities: { name: slashStripped.slice(8).trim() }, confidence: 1.0 };
   }
+  if (slashStripped === "refresh summaries" || slashStripped === "refresh-summaries") {
+    return { intent: "refresh_summaries", entities: {}, confidence: 1.0 };
+  }
   if (slashStripped === "signals") {
     return { intent: "signals", entities: {}, confidence: 1.0 };
   }

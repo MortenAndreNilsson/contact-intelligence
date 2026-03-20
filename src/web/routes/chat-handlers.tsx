@@ -15,7 +15,7 @@ export type IntentHandler = (entities: QueryUnderstanding["entities"]) => Promis
 import { handleDashboard, handleArticles, handleViews, handleSurveys, handleEngagement } from "./handlers/view-handlers.tsx";
 import { handleCompany, handleContact, handleContacts, handleDimensions, handleTimeline, handleLookup, handleBriefing } from "./handlers/entity-handlers.tsx";
 import { handleSync, handleEnrich, handleResearch } from "./handlers/action-handlers.tsx";
-import { handleHelp, handleSyncStatus, handleUnknown } from "./handlers/admin-handlers.tsx";
+import { handleHelp, handleSyncStatus, handleRefreshSummaries, handleUnknown } from "./handlers/admin-handlers.tsx";
 import { handleJourneyOverview, handleJourneyCompany, handleJourneySet, handleJourneySnapshot, handleFluencySet } from "./handlers/journey-handlers.tsx";
 import { handleSignals } from "./handlers/signal-handlers.tsx";
 
@@ -90,6 +90,7 @@ export const handlers: Record<string, IntentHandler> = {
   // signals (G7)
   signals: handleSignals,
   // admin
+  refresh_summaries: handleRefreshSummaries,
   help: handleHelp,
   sync_status: handleSyncStatus,
   unknown: handleUnknown,

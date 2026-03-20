@@ -586,6 +586,7 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 { cmd: '/journey ', desc: 'Company journey detail', hasArg: true },
                 { cmd: '/signals', desc: 'Engagement signals feed' },
                 { cmd: '/snapshot ', desc: 'Create maturity snapshot', hasArg: true },
+                { cmd: '/refresh-summaries', desc: 'Refresh all cached LLM summaries' },
                 { cmd: '/help', desc: 'Show available commands' }
               ],
               get filtered() {

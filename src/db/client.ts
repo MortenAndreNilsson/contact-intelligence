@@ -81,6 +81,9 @@ async function getConnection(): Promise<duckdb.DuckDBConnection> {
     "ALTER TABLE companies ADD COLUMN IF NOT EXISTS briefing_at VARCHAR",
     "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS briefing VARCHAR",
     "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS briefing_at VARCHAR",
+    // Cached inline summaries (1-2 sentence LLM summaries, refreshed in batch)
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS summary VARCHAR",
+    "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS summary VARCHAR",
     // G6: Fluency level on contacts
     "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS fluency_level VARCHAR",
     "ALTER TABLE contacts ADD COLUMN IF NOT EXISTS fluency_certified_at VARCHAR",

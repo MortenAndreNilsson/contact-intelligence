@@ -72,8 +72,8 @@ app.get("/companies/:id", async (c) => {
 
   const contacts = await listContacts({ companyId: id });
   const activities = await listActivities({ companyId: id, limit: 20 });
-  // Skip LLM summary on page load (adds ~4s latency). Use /briefing button for LLM analysis.
-  const content = <CompanyProfileCard company={company} contacts={contacts} activities={activities} />;
+  // Use cached summary from DB (instant). Refresh via /refresh-summaries or cron.
+  const content = <CompanyProfileCard company={company} contacts={contacts} activities={activities} summary={company.summary} />;
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
