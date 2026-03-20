@@ -162,7 +162,7 @@ export function ContactProfileCard({
         </div>
 
         <div style="margin-top: var(--space-sm)">
-          <InlineSummary summary={summary ?? null} />
+          <InlineSummary summary={summary ?? null} entityId={contact.id} entityType="contact" />
         </div>
 
         {/* Briefing — show stored or offer to generate */}

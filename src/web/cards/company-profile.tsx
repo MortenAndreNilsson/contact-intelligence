@@ -136,7 +136,7 @@ export function CompanyProfileCard({
           </div>
         )}
 
-        <InlineSummary summary={summary ?? null} />
+        <InlineSummary summary={summary ?? null} entityId={company.id} entityType="company" />
 
         {tagEditor(company.id, company.tags)}
 

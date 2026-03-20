@@ -78,7 +78,7 @@ export async function listContacts(opts?: { companyId?: string; query?: string; 
   }));
 }
 
-export async function updateContact(id: string, fields: Partial<Pick<Contact, "name" | "email" | "company_id" | "job_title" | "consent_status" | "consent_date" | "notes" | "tags">> & { briefing?: string; briefing_at?: string; enrich_skip?: boolean }): Promise<void> {
+export async function updateContact(id: string, fields: Partial<Pick<Contact, "name" | "email" | "company_id" | "job_title" | "consent_status" | "consent_date" | "notes" | "tags">> & { summary?: string; briefing?: string; briefing_at?: string; enrich_skip?: boolean }): Promise<void> {
   const sets: string[] = [];
   const params: Record<string, unknown> = { $id: id };
 
@@ -90,6 +90,7 @@ export async function updateContact(id: string, fields: Partial<Pick<Contact, "n
   if (fields.consent_date !== undefined) { sets.push("consent_date = $consentDate"); params.$consentDate = fields.consent_date; }
   if (fields.notes !== undefined) { sets.push("notes = $notes"); params.$notes = fields.notes; }
   if (fields.tags !== undefined) { sets.push("tags = $tags"); params.$tags = JSON.stringify(fields.tags); }
+  if (fields.summary !== undefined) { sets.push("summary = $summary"); params.$summary = fields.summary; }
   if (fields.briefing !== undefined) { sets.push("briefing = $briefing"); params.$briefing = fields.briefing; }
   if (fields.briefing_at !== undefined) { sets.push("briefing_at = $briefingAt"); params.$briefingAt = fields.briefing_at; }
   if (fields.enrich_skip !== undefined) { sets.push("enrich_skip = $enrichSkip"); params.$enrichSkip = fields.enrich_skip; }

@@ -5,7 +5,7 @@ import { listContacts, getContact, getContactByEmail, updateContact } from "../.
 import { listActivities, createActivity } from "../../services/activities.ts";
 import { enrichSingleContact } from "../../services/enrich-contacts.ts";
 import { summarizeActivities, generateBriefing } from "../../services/llm-briefings.ts";
-import { BriefingCard } from "../cards/briefing-card.tsx";
+import { BriefingCard, InlineSummary } from "../cards/briefing-card.tsx";
 import type { ContactWithDetails } from "../../types/index.ts";
 
 const app = new Hono();
@@ -217,6 +217,21 @@ app.get("/contacts/:id", async (c) => {
 
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
+});
+
+// POST /contacts/:id/refresh-summary — generate/refresh inline summary for one contact
+app.post("/contacts/:id/refresh-summary", async (c) => {
+  const id = c.req.param("id");
+  const contact = await getContact(id);
+  if (!contact) return c.html(<div class="text-xs text-muted">Not found</div>, 404);
+
+  const activities = await listActivities({ contactId: id, limit: 15 });
+  const summary = await summarizeActivities(activities, contact.name || contact.email);
+  if (summary) {
+    await updateContact(id, { summary });
+  }
+
+  return c.html(<InlineSummary summary={summary} entityId={id} entityType="contact" />);
 });
 
 // POST /contacts/:id/briefing — generate full briefing (G4)

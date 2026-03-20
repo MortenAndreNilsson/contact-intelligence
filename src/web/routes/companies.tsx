@@ -5,7 +5,7 @@ import { listCompanies, getCompany, updateCompany, createCompany } from "../../s
 import { listContacts } from "../../services/contacts.ts";
 import { listActivities } from "../../services/activities.ts";
 import { summarizeActivities, generateBriefing } from "../../services/llm-briefings.ts";
-import { BriefingCard } from "../cards/briefing-card.tsx";
+import { BriefingCard, InlineSummary } from "../cards/briefing-card.tsx";
 import type { CompanyWithStats } from "../../types/index.ts";
 
 const app = new Hono();
@@ -120,6 +120,21 @@ app.post("/companies/:id/briefing", async (c) => {
       <CompanyProfileCard company={company} contacts={contacts} activities={activities.slice(0, 20)} summary={summary} />
     </div>
   );
+});
+
+// POST /companies/:id/refresh-summary — generate/refresh inline summary for one company
+app.post("/companies/:id/refresh-summary", async (c) => {
+  const id = c.req.param("id");
+  const company = await getCompany(id);
+  if (!company) return c.html(<div class="text-xs text-muted">Not found</div>, 404);
+
+  const activities = await listActivities({ companyId: id, limit: 15 });
+  const summary = await summarizeActivities(activities, company.name);
+  if (summary) {
+    await updateCompany(id, { summary });
+  }
+
+  return c.html(<InlineSummary summary={summary} entityId={id} entityType="company" />);
 });
 
 // POST /companies — create a new company

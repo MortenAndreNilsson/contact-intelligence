@@ -52,14 +52,47 @@ export function BriefingCard({
 }
 
 /** Inline summary block for profile cards (G4) */
-export function InlineSummary({ summary }: { summary: string | null }) {
-  if (!summary) return <></>;
+export function InlineSummary({ summary, entityId, entityType }: { summary: string | null; entityId?: string; entityType?: "company" | "contact" }) {
+  const refreshUrl = entityId && entityType
+    ? `/${entityType === "company" ? "companies" : "contacts"}/${entityId}/refresh-summary`
+    : null;
+
+  if (!summary) {
+    if (!refreshUrl) return <></>;
+    return (
+      <div style="margin-bottom: var(--space-sm)">
+        <button
+          class="text-xs"
+          style="background: none; border: 1px solid var(--color-border); color: var(--visma-turquoise); cursor: pointer; padding: 2px 8px; border-radius: var(--radius-md)"
+          hx-post={refreshUrl}
+          hx-target="closest div"
+          hx-swap="outerHTML"
+          hx-indicator="closest div"
+        >
+          Generate summary
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       class="text-sm text-secondary"
-      style="line-height: 1.6; padding: var(--space-xs) var(--space-sm); background: var(--color-surface-elevated); border-radius: var(--radius-md); border-left: 3px solid var(--visma-turquoise); margin-bottom: var(--space-sm); font-style: italic"
+      style="line-height: 1.6; padding: var(--space-xs) var(--space-sm); background: var(--color-surface-elevated); border-radius: var(--radius-md); border-left: 3px solid var(--visma-turquoise); margin-bottom: var(--space-sm); font-style: italic; display: flex; align-items: flex-start; gap: 8px"
     >
-      {summary}
+      <span style="flex: 1">{summary}</span>
+      {refreshUrl && (
+        <button
+          class="text-xs"
+          style="background: none; border: none; color: var(--color-text-muted); cursor: pointer; padding: 0; flex-shrink: 0"
+          title="Refresh summary"
+          hx-post={refreshUrl}
+          hx-target="closest div"
+          hx-swap="outerHTML"
+        >
+          &#8635;
+        </button>
+      )}
     </div>
   );
 }
