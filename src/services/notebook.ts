@@ -9,8 +9,7 @@ import { embedContent } from "./embeddings.ts";
 import type { NotebookEntry, NotebookRow } from "../types/index.ts";
 import { existsSync, mkdirSync } from "fs";
 import { join, basename } from "path";
-// @ts-ignore — pdf-parse has no types
-import pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
 const PDF_DIR = join(import.meta.dir, "../../data/pdfs");
 
@@ -140,12 +139,15 @@ export async function togglePin(id: string): Promise<boolean> {
 export async function importPdf(file: File, tags?: string[]): Promise<NotebookEntry> {
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  // Extract text from PDF
-  const parsed = await pdfParse(buffer);
-  const text = parsed.text?.trim();
+  // Extract text from PDF using pdf-parse v2
+  const parser = new PDFParse({ data: buffer });
+  const result = await parser.getText();
+  const text = result.text?.trim();
   if (!text || text.length < 10) {
     throw new Error("Could not extract text from PDF (empty or too short)");
   }
+  const numpages = result.total || 0;
+  await parser.destroy();
 
   // Save PDF file to data/pdfs/
   if (!existsSync(PDF_DIR)) mkdirSync(PDF_DIR, { recursive: true });
@@ -167,6 +169,6 @@ export async function importPdf(file: File, tags?: string[]): Promise<NotebookEn
     tags: pdfTags,
   });
 
-  console.log(`PDF imported: ${file.name} → ${text.length} chars, ${parsed.numpages} pages`);
+  console.log(`PDF imported: ${file.name} → ${text.length} chars, ${numpages} pages`);
   return note;
 }
