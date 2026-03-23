@@ -32,6 +32,10 @@ export function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">set [company] to [stage]</span> — set journey stage</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">set [contact] to [level]</span> — set fluency level</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">snapshot [company]</span> — create maturity snapshot</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/search [query]</span> — semantic search across articles, notes, research</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/embed articles</span> — index CMS articles for semantic search</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/embedding stats</span> — show embedding statistics</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/backup</span> — backup database locally + GCS</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/refresh-summaries</span> — refresh all cached summaries via LLM</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/help</span> — show this list</div>
         <div class="text-xs text-muted mt-sm">You can also type naturally: "who works at Visma?", "show me their survey scores", "any Norwegian software companies?"</div>

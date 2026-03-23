@@ -94,7 +94,8 @@ Categories:
 - view_data: user wants to see data (dashboard, articles, page views, surveys, engagement scores, lists overview, journey overview, signals feed)
 - entity_lookup: user wants to see a specific company, contact, list, or asks about a named entity ("show Visma", "who is Hanne?", "who works at Spotify?", "timeline for Acme", "survey dimensions for Visma")
 - action: user wants to DO something (run sync, enrich contacts, research a company, set journey stage, set fluency level, take a snapshot)
-- admin: help, commands, sync status
+- memory_search: user wants to search across knowledge — articles content, notes, research profiles ("what articles about AI governance?", "what do we know about cloud migration?", "any notes on sustainability?", "find insights about leadership")
+- admin: help, commands, sync status, backup database, embed articles, embedding stats
 - unknown: cannot determine
 
 Context resolution rules:
@@ -164,6 +165,9 @@ function subClassifyAction(msg: string): string {
 function subClassifyAdmin(msg: string): string {
   const lower = msg.toLowerCase();
   if (/\b(sync status|sync log|when.* last sync|last sync)\b/.test(lower)) return "sync_status";
+  if (/\b(backup|back up|export database)\b/.test(lower)) return "backup";
+  if (/\b(embed articles|index articles|build embeddings|reindex)\b/.test(lower)) return "embed_articles";
+  if (/\b(embedding stats|memory stats|how many embeddings)\b/.test(lower)) return "embedding_stats";
   return "help";
 }
 
@@ -213,7 +217,7 @@ export async function understandQuery(
 
   try {
     const parsed = JSON.parse(raw);
-    const validCategories = ["view_data", "entity_lookup", "action", "admin", "unknown"];
+    const validCategories = ["view_data", "entity_lookup", "action", "memory_search", "admin", "unknown"];
     const category = validCategories.includes(parsed.category) ? parsed.category : "unknown";
 
     if (typeof parsed.confidence === "number" && parsed.confidence < 0.4) {
@@ -236,6 +240,7 @@ export async function understandQuery(
       case "view_data": intent = subClassifyViewData(message); break;
       case "entity_lookup": intent = subClassifyEntityLookup(message, entities); break;
       case "action": intent = subClassifyAction(message); break;
+      case "memory_search": intent = "memory_search"; break;
       case "admin": intent = subClassifyAdmin(message); break;
       default: intent = "unknown";
     }
@@ -441,6 +446,13 @@ export function regexFallback(msg: string): QueryUnderstanding {
     return { intent: "contacts", entities: {}, confidence: 0.9 };
   }
 
+  // Memory search (must be before lookup patterns to catch "articles about...")
+  if (/\b(articles about|notes on|research on|insights about|search.*memory|what have.*read about)\b/.test(slashStripped)) {
+    const searchMatch = slashStripped.match(/(?:articles about|notes on|research on|insights about|search.*memory|what have.*read about)\s*(.*)/);
+    const searchQuery = searchMatch?.[1]?.replace(/[?.!]+$/, "").trim() || slashStripped;
+    return { intent: "memory_search", entities: { name: searchQuery }, confidence: 0.8 };
+  }
+
   // Lookup patterns
   const lookupPatterns = [
     /(?:who is|who's)\s+(.+)/,
@@ -510,6 +522,18 @@ export function regexFallback(msg: string): QueryUnderstanding {
   }
   if (slashStripped.startsWith("snapshot ")) {
     return { intent: "journey_snapshot", entities: { name: slashStripped.slice(9).trim() }, confidence: 1.0 };
+  }
+  if (slashStripped.startsWith("search ") || slashStripped.startsWith("memory ")) {
+    return { intent: "memory_search", entities: { name: slashStripped.replace(/^(search|memory)\s+/, "").trim() }, confidence: 1.0 };
+  }
+  if (slashStripped === "embed articles" || slashStripped === "index articles") {
+    return { intent: "embed_articles", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped === "embedding stats" || slashStripped === "memory stats") {
+    return { intent: "embedding_stats", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped === "backup" || slashStripped === "backup database") {
+    return { intent: "backup", entities: {}, confidence: 1.0 };
   }
 
   return { intent: "unknown", entities: {}, confidence: 0 };
