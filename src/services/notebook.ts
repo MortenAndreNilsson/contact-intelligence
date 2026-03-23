@@ -1,11 +1,18 @@
 /**
  * Notebook service — personal knowledge store.
  * Notes are auto-embedded for semantic search on save.
+ * Supports PDF upload: text is extracted and stored as note content.
  */
 
 import { generateId, queryAll, queryOne, run } from "../db/client.ts";
 import { embedContent } from "./embeddings.ts";
 import type { NotebookEntry, NotebookRow } from "../types/index.ts";
+import { existsSync, mkdirSync } from "fs";
+import { join, basename } from "path";
+// @ts-ignore — pdf-parse has no types
+import pdfParse from "pdf-parse";
+
+const PDF_DIR = join(import.meta.dir, "../../data/pdfs");
 
 function parse(row: NotebookRow): NotebookEntry {
   return { ...row, tags: JSON.parse(row.tags || "[]") };
@@ -124,4 +131,42 @@ export async function togglePin(id: string): Promise<boolean> {
   const newPinned = !note.pinned;
   await run(`UPDATE notebook SET pinned = $pinned WHERE id = $id`, { $id: id, $pinned: newPinned });
   return newPinned;
+}
+
+/**
+ * Import a PDF file: extract text, save PDF to data/pdfs/, create notebook entry.
+ * Returns the created notebook entry.
+ */
+export async function importPdf(file: File, tags?: string[]): Promise<NotebookEntry> {
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  // Extract text from PDF
+  const parsed = await pdfParse(buffer);
+  const text = parsed.text?.trim();
+  if (!text || text.length < 10) {
+    throw new Error("Could not extract text from PDF (empty or too short)");
+  }
+
+  // Save PDF file to data/pdfs/
+  if (!existsSync(PDF_DIR)) mkdirSync(PDF_DIR, { recursive: true });
+  const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const pdfId = generateId();
+  const storedName = `${pdfId}-${safeFilename}`;
+  const pdfPath = join(PDF_DIR, storedName);
+  await Bun.write(pdfPath, buffer);
+
+  // Use filename (without .pdf) as title
+  const title = basename(file.name, ".pdf").replace(/[_-]+/g, " ").trim() || "Imported PDF";
+
+  // Create notebook entry with extracted text
+  const pdfTags = [...(tags ?? []), "pdf"];
+  const note = await createNote({
+    title,
+    content: text,
+    url: `file://pdfs/${storedName}`,
+    tags: pdfTags,
+  });
+
+  console.log(`PDF imported: ${file.name} → ${text.length} chars, ${parsed.numpages} pages`);
+  return note;
 }

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { Layout } from "../pages/layout.tsx";
 import { NotebookListCard, NotebookDetailCard, NotebookFormCard } from "../cards/notebook-card.tsx";
-import { createNote, getNote, listNotes, updateNote, deleteNote, togglePin } from "../../services/notebook.ts";
+import { createNote, getNote, listNotes, updateNote, deleteNote, togglePin, importPdf } from "../../services/notebook.ts";
 
 const app = new Hono();
 
@@ -38,6 +38,38 @@ app.post("/notebook", async (c) => {
 
   const note = await createNote({ title, content, url, tags });
   return c.html(<NotebookDetailCard note={note} />);
+});
+
+// ========== POST /notebook/upload-pdf — import PDF ==========
+app.post("/notebook/upload-pdf", async (c) => {
+  const body = await c.req.parseBody();
+  const file = body.pdf;
+  if (!file || !(file instanceof File) || !file.name.endsWith(".pdf")) {
+    const notes = await listNotes();
+    return c.html(
+      <div>
+        <div class="card" style="margin-bottom: 0.5rem">
+          <div class="text-sm" style="color: var(--visma-coral)">Please select a PDF file.</div>
+        </div>
+        <NotebookListCard notes={notes} />
+      </div>
+    );
+  }
+
+  try {
+    const note = await importPdf(file);
+    return c.html(<NotebookDetailCard note={note} />);
+  } catch (err: any) {
+    const notes = await listNotes();
+    return c.html(
+      <div>
+        <div class="card" style="margin-bottom: 0.5rem">
+          <div class="text-sm" style="color: var(--visma-coral)">PDF import failed: {err.message}</div>
+        </div>
+        <NotebookListCard notes={notes} />
+      </div>
+    );
+  }
 });
 
 // ========== GET /notebook/:id — detail ==========

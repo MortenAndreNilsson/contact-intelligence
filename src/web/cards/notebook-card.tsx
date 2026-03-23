@@ -11,7 +11,15 @@ export function NotebookListCard({ notes, query }: { notes: NotebookEntry[]; que
     <div class="card">
       <div class="card-label mb-xs" style="display: flex; align-items: center; justify-content: space-between">
         <span>Notebook ({notes.length})</span>
-        <button class="btn btn-sm" hx-get="/notebook/new" hx-target="#canvas" hx-swap="innerHTML">+ New Note</button>
+        <div style="display: flex; gap: 4px">
+          <label class="btn btn-sm" style="cursor: pointer; position: relative">
+            Upload PDF
+            <input type="file" accept=".pdf" name="pdf" style="position: absolute; opacity: 0; width: 0; height: 0"
+              hx-post="/notebook/upload-pdf" hx-target="#canvas" hx-swap="innerHTML" hx-encoding="multipart/form-data"
+              hx-on--change="htmx.trigger(this, 'change')" />
+          </label>
+          <button class="btn btn-sm" hx-get="/notebook/new" hx-target="#canvas" hx-swap="innerHTML">+ New Note</button>
+        </div>
       </div>
 
       {query && <div class="text-xs text-muted mb-sm">Showing results for "{query}"</div>}
