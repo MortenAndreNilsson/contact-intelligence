@@ -6,7 +6,7 @@
 import { generateId, queryAll, queryOne, run } from "../db/client.ts";
 import type { EmbeddingContentType, EmbeddingSearchResult, EmbeddingSource } from "../types/index.ts";
 
-const EMBEDDING_URL = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent";
+const EMBEDDING_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent";
 const EMBEDDING_DIM = 768;
 const CHUNK_TARGET_CHARS = 2000; // ~500 tokens
 const EMBED_DELAY_MS = 100;
@@ -23,6 +23,7 @@ async function embedText(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEV
     body: JSON.stringify({
       content: { parts: [{ text }] },
       taskType,
+      outputDimensionality: EMBEDDING_DIM,
     }),
   });
 
