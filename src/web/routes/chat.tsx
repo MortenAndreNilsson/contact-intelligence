@@ -28,9 +28,11 @@ app.post("/chat", async (c) => {
 
   // Understand the query (LLM with regex fallback)
   const understanding = await understandQuery(raw, history);
+  console.log(`Chat: "${raw}" → intent=${understanding.intent}, confidence=${understanding.confidence}`);
 
   // Dispatch to the right handler
   const result = await dispatchIntent(understanding);
+  console.log(`Chat: → ${result.summary}`);
 
   // Record conversation turns
   addTurn(sessionId, { role: "user", content: raw, intent: understanding.intent });
