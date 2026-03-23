@@ -341,6 +341,26 @@ export function regexFallback(msg: string): QueryUnderstanding {
   const lower = msg.toLowerCase().trim();
   const slashStripped = lower.startsWith("/") ? lower.slice(1) : lower;
 
+  // Exact multi-word commands (must be checked before keyword matchers)
+  if (slashStripped === "embed articles" || slashStripped === "index articles") {
+    return { intent: "embed_articles", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped === "embed notebooks" || slashStripped === "index notebooks") {
+    return { intent: "embed_notebooks", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped === "embedding stats" || slashStripped === "memory stats") {
+    return { intent: "embedding_stats", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped === "backup" || slashStripped === "backup database") {
+    return { intent: "backup", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped === "notebook" || slashStripped === "notes" || slashStripped === "my notes") {
+    return { intent: "notebook", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped.startsWith("search ") || slashStripped.startsWith("memory ")) {
+    return { intent: "memory_search", entities: { name: slashStripped.replace(/^(search|memory)\s+/, "").trim() }, confidence: 1.0 };
+  }
+
   // Dashboard
   if (/\b(dashboard|overview|summary|statistics|numbers|how are we doing|what.s going on)\b/.test(slashStripped)) {
     return { intent: "dashboard", entities: {}, confidence: 0.9 };
@@ -524,24 +544,7 @@ export function regexFallback(msg: string): QueryUnderstanding {
   if (slashStripped.startsWith("snapshot ")) {
     return { intent: "journey_snapshot", entities: { name: slashStripped.slice(9).trim() }, confidence: 1.0 };
   }
-  if (slashStripped.startsWith("search ") || slashStripped.startsWith("memory ")) {
-    return { intent: "memory_search", entities: { name: slashStripped.replace(/^(search|memory)\s+/, "").trim() }, confidence: 1.0 };
-  }
-  if (slashStripped === "embed articles" || slashStripped === "index articles") {
-    return { intent: "embed_articles", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "embed notebooks" || slashStripped === "index notebooks") {
-    return { intent: "embed_notebooks", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "embedding stats" || slashStripped === "memory stats") {
-    return { intent: "embedding_stats", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "backup" || slashStripped === "backup database") {
-    return { intent: "backup", entities: {}, confidence: 1.0 };
-  }
-  if (slashStripped === "notebook" || slashStripped === "notes" || slashStripped === "my notes") {
-    return { intent: "notebook", entities: {}, confidence: 1.0 };
-  }
+  // (embed/search/backup/notebook commands handled at top of function)
 
   return { intent: "unknown", entities: {}, confidence: 0 };
 }
