@@ -34,7 +34,7 @@ export function MessageComposeCard({
   const currentTone = message?.tone || "professional";
   const currentProvider = message?.provider || "lmstudio";
   const refs = message?.content_references || [];
-  const refsJson = JSON.stringify(refs).replace(/'/g, "\\'");
+  const refsInitJson = JSON.stringify({ refs, newUrl: "" });
 
   return (
     <div class="card" id="message-content">
@@ -133,7 +133,7 @@ export function MessageComposeCard({
             <div class="mb-sm">
               <div class="text-xs text-muted mb-xs">Content references</div>
               <div
-                x-data={`{ refs: JSON.parse('${refsJson}'), newUrl: '' }`}
+                x-data={refsInitJson}
               >
                 <template x-for="(ref, i) in refs" x-bind:key="i">
                   <div class="flex items-center gap-xs mb-xs">

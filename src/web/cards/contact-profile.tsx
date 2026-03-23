@@ -19,10 +19,10 @@ function editableField(
   value: string | null,
   placeholder: string,
 ) {
-  const safeValue = (value || "").replace(/'/g, "\\'");
+  const initJson = JSON.stringify({ editing: false, value: value || "" });
   return (
     <span
-      x-data={`{ editing: false, value: '${safeValue}' }`}
+      x-data={initJson}
       class="editable-field"
     >
       <span
@@ -30,7 +30,7 @@ function editableField(
         x-on:click="editing = true; $nextTick(() => $refs.input.focus())"
         class="editable-display"
       >
-        <span x-text={`value || '${placeholder}'`} style={!value ? "color: var(--color-text-muted); font-style: italic" : undefined}></span>
+        <span x-text={`value || ${JSON.stringify(placeholder)}`} style={!value ? "color: var(--color-text-muted); font-style: italic" : undefined}></span>
         <span class="edit-icon">&#9998;</span>
       </span>
       <form
@@ -57,10 +57,10 @@ function editableField(
 }
 
 function tagEditor(contactId: string, tags: string[]) {
-  const tagsJson = JSON.stringify(tags).replace(/'/g, "\\'");
+  const initJson = JSON.stringify({ tags, newTag: "" });
   return (
     <div
-      x-data={`{ tags: JSON.parse('${tagsJson}'), newTag: '' }`}
+      x-data={initJson}
       style="display: inline-flex; gap: 0.35rem; align-items: center; flex-wrap: wrap"
     >
       <template x-for="(tag, i) in tags" x-bind:key="i">

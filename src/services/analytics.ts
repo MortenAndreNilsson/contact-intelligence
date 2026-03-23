@@ -12,9 +12,11 @@ import type {
 } from "../types/index.ts";
 
 /** Build a WHERE clause fragment for date filtering. Returns empty string for "all". */
+const ALLOWED_DAYS = new Set([7, 30, 90]);
 function dateFilter(alias: string, days: number | null, column = "occurred_at"): string {
   if (days === null) return "";
-  return ` AND ${alias}.${column} >= CAST(current_timestamp - INTERVAL '${days} days' AS VARCHAR)`;
+  const safeDays = ALLOWED_DAYS.has(days) ? days : 30;
+  return ` AND ${alias}.${column} >= CAST(current_timestamp - INTERVAL '${safeDays} days' AS VARCHAR)`;
 }
 
 /** Top articles ranked by unique readers, with 7-day movement */
