@@ -586,6 +586,11 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 { cmd: '/journey ', desc: 'Company journey detail', hasArg: true },
                 { cmd: '/signals', desc: 'Engagement signals feed' },
                 { cmd: '/snapshot ', desc: 'Create maturity snapshot', hasArg: true },
+                { cmd: '/search ', desc: 'Semantic search across articles, notes, research', hasArg: true },
+                { cmd: '/embed articles', desc: 'Index CMS articles for semantic search' },
+                { cmd: '/embedding stats', desc: 'Show embedding statistics' },
+                { cmd: '/backup', desc: 'Backup database locally + GCS' },
+                { cmd: '/briefing ', desc: 'Generate CRM briefing', hasArg: true },
                 { cmd: '/refresh-summaries', desc: 'Refresh all cached LLM summaries' },
                 { cmd: '/help', desc: 'Show available commands' }
               ],
