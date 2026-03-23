@@ -178,4 +178,30 @@ CREATE TABLE IF NOT EXISTS signals (
 
 CREATE INDEX IF NOT EXISTS idx_signals_company ON signals(company_id);
 CREATE INDEX IF NOT EXISTS idx_signals_type ON signals(signal_type);
-CREATE INDEX IF NOT EXISTS idx_signals_dismissed ON signals(dismissed)
+CREATE INDEX IF NOT EXISTS idx_signals_dismissed ON signals(dismissed);
+
+-- G5: Semantic Memory Layer
+CREATE TABLE IF NOT EXISTS embedding_sources (
+  id VARCHAR PRIMARY KEY,
+  content_type VARCHAR NOT NULL,
+  source_ref VARCHAR NOT NULL,
+  content_hash VARCHAR NOT NULL,
+  chunk_count INTEGER DEFAULT 1,
+  last_embedded_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR),
+  UNIQUE(content_type, source_ref)
+);
+
+CREATE TABLE IF NOT EXISTS embeddings (
+  id VARCHAR PRIMARY KEY,
+  content_type VARCHAR NOT NULL,
+  source_id VARCHAR NOT NULL REFERENCES embedding_sources(id),
+  chunk_index INTEGER DEFAULT 0,
+  content_text VARCHAR NOT NULL,
+  embedding FLOAT[768] NOT NULL,
+  metadata VARCHAR DEFAULT '{}',
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
+);
+
+CREATE INDEX IF NOT EXISTS idx_embeddings_type ON embeddings(content_type);
+CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_id);
+CREATE INDEX IF NOT EXISTS idx_embedding_sources_type_ref ON embedding_sources(content_type, source_ref)

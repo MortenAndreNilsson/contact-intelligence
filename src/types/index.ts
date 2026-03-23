@@ -428,3 +428,37 @@ export interface Signal {
   dismissed: boolean;
   created_at: string;
 }
+
+// --- G5: Embedding / Semantic Memory types ---
+
+export type EmbeddingContentType = "article" | "note" | "research";
+
+export interface Embedding {
+  id: string;
+  content_type: EmbeddingContentType;
+  source_id: string;
+  chunk_index: number;
+  content_text: string;
+  embedding: number[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface EmbeddingSource {
+  id: string;
+  content_type: EmbeddingContentType;
+  source_ref: string;
+  content_hash: string;
+  chunk_count: number;
+  last_embedded_at: string;
+}
+
+export interface EmbeddingSearchResult {
+  id: string;
+  content_type: EmbeddingContentType;
+  source_id: string;
+  chunk_index: number;
+  content_text: string;
+  metadata: Record<string, unknown>;
+  score: number;
+}
