@@ -1,5 +1,6 @@
 import { generateId, queryAll, queryOne, run } from "../db/client.ts";
 import type { Company, CompanyWithStats, CompanyRow } from "../types/index.ts";
+import { embedContent } from "./embeddings.ts";
 
 function parseCompany(row: CompanyRow): Company {
   return { ...row, tags: JSON.parse(row.tags || "[]") };
@@ -90,6 +91,15 @@ export async function updateCompany(id: string, fields: Partial<Pick<Company, "n
   if (sets.length === 0) return;
   sets.push("updated_at = CAST(current_timestamp AS VARCHAR)");
   await run(`UPDATE companies SET ${sets.join(", ")} WHERE id = $id`, params);
+
+  // Embed updated notes for semantic search (fire-and-forget)
+  if (fields.notes !== undefined && fields.notes) {
+    const company = await queryOne<{ name: string }>(`SELECT name FROM companies WHERE id = $id`, { $id: id });
+    embedContent("note", `company:${id}`, fields.notes, {
+      company_id: id,
+      company_name: company?.name,
+    }).catch((err) => console.warn("Failed to embed company note:", err.message));
+  }
 }
 
 export async function deleteCompany(id: string): Promise<void> {

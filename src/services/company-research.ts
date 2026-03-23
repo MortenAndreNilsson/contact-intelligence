@@ -3,6 +3,8 @@
  * Generates a rich company profile with structured metadata from web knowledge.
  */
 
+import { embedContent } from "./embeddings.ts";
+
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 export interface CompanyResearchResult {
@@ -62,13 +64,24 @@ Rules:
 
   try {
     const parsed = JSON.parse(text);
-    return {
+    const result: CompanyResearchResult = {
       description: parsed.description || null,
       industry: parsed.industry || null,
       country: parsed.country || null,
       size_bucket: parsed.size_bucket || null,
       tags: Array.isArray(parsed.tags) ? parsed.tags.map((t: string) => String(t).toLowerCase().trim()).filter(Boolean) : [],
     };
+
+    // Embed research description for semantic search (fire-and-forget)
+    if (result.description) {
+      embedContent("research", `company:${name}`, result.description, {
+        company_name: name,
+        domain: domain || undefined,
+        industry: result.industry,
+      }).catch((err) => console.warn("Failed to embed research:", err.message));
+    }
+
+    return result;
   } catch {
     // Fallback: if JSON parse fails, treat entire text as description
     console.warn("Gemini returned non-JSON response, using as description only");

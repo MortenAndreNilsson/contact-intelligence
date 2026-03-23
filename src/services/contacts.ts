@@ -1,5 +1,6 @@
 import { generateId, queryAll, queryOne, run } from "../db/client.ts";
 import type { Contact, ContactWithDetails, ContactRow } from "../types/index.ts";
+import { embedContent } from "./embeddings.ts";
 
 function parseContact(row: ContactRow): Contact {
   return { ...row, tags: JSON.parse(row.tags || "[]") };
@@ -130,6 +131,18 @@ export async function updateContact(id: string, fields: Partial<Pick<Contact, "n
       `INSERT INTO list_members (list_id, contact_id) VALUES ($lid, $cid)`,
       { $lid: lm.list_id, $cid: id }
     );
+  }
+
+  // Embed updated notes for semantic search (fire-and-forget)
+  if (fields.notes !== undefined && fields.notes) {
+    const contact = await queryOne<{ name: string; email: string }>(
+      `SELECT name, email FROM contacts WHERE id = $id`, { $id: id }
+    );
+    embedContent("note", `contact:${id}`, fields.notes, {
+      contact_id: id,
+      contact_name: contact?.name,
+      contact_email: contact?.email,
+    }).catch((err) => console.warn("Failed to embed contact note:", err.message));
   }
 }
 
