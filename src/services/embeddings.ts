@@ -172,6 +172,7 @@ export async function searchEmbeddings(
   query: string,
   opts?: { limit?: number; minScore?: number; contentType?: EmbeddingContentType },
 ): Promise<EmbeddingSearchResult[]> {
+  console.log(`Semantic search: "${query}"`);
   const queryVec = await embedText(query, "RETRIEVAL_QUERY");
   const limit = opts?.limit ?? 10;
   const minScore = opts?.minScore ?? 0.65;
@@ -288,6 +289,8 @@ async function fetchArticleContent(section: string, slug: string, token: string)
  * Returns count of newly embedded articles.
  */
 export async function embedArticles(): Promise<{ processed: number; embedded: number; skipped: number; errors: number }> {
+  console.log("Embedding articles from CMS...");
+
   const articles = await queryAll<{ section: string; slug: string; contentTitle: string }>(
     `SELECT DISTINCT section, slug, MAX(contentTitle) as contentTitle
      FROM cms_events
@@ -297,7 +300,11 @@ export async function embedArticles(): Promise<{ processed: number; embedded: nu
      ORDER BY section, slug`
   );
 
+  console.log(`  Found ${articles.length} distinct articles in cms_events`);
+  if (articles.length === 0) return { processed: 0, embedded: 0, skipped: 0, errors: 0 };
+
   const token = await getGcsToken();
+  console.log("  GCS token acquired");
   let embedded = 0;
   let skipped = 0;
   let errors = 0;
@@ -328,6 +335,7 @@ export async function embedArticles(): Promise<{ processed: number; embedded: nu
     }
   }
 
+  console.log(`Article embedding done: ${embedded} embedded, ${skipped} skipped, ${errors} errors (of ${articles.length} total)`);
   return { processed: articles.length, embedded, skipped, errors };
 }
 
@@ -335,10 +343,14 @@ export async function embedArticles(): Promise<{ processed: number; embedded: nu
  * Embed all notebook entries. Skips unchanged (via content hash).
  */
 export async function embedNotebooks(): Promise<{ processed: number; embedded: number; skipped: number; errors: number }> {
-  const { queryAll: q } = await import("../db/client.ts");
-  const notes = await q<{ id: string; title: string; content: string; url: string | null; tags: string }>(
+  console.log("Embedding notebook entries...");
+
+  const notes = await queryAll<{ id: string; title: string; content: string; url: string | null; tags: string }>(
     `SELECT id, title, content, url, tags FROM notebook ORDER BY updated_at DESC`
   );
+
+  console.log(`  Found ${notes.length} notebook entries`);
+  if (notes.length === 0) return { processed: 0, embedded: 0, skipped: 0, errors: 0 };
 
   let embedded = 0;
   let skipped = 0;
@@ -366,5 +378,6 @@ export async function embedNotebooks(): Promise<{ processed: number; embedded: n
     }
   }
 
+  console.log(`Notebook embedding done: ${embedded} embedded, ${skipped} unchanged, ${errors} errors (of ${notes.length} total)`);
   return { processed: notes.length, embedded, skipped, errors };
 }
