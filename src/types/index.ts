@@ -431,7 +431,7 @@ export interface Signal {
 
 // --- G5: Embedding / Semantic Memory types ---
 
-export type EmbeddingContentType = "article" | "note" | "research";
+export type EmbeddingContentType = "article" | "note" | "research" | "notebook";
 
 export interface Embedding {
   id: string;
@@ -451,6 +451,21 @@ export interface EmbeddingSource {
   content_hash: string;
   chunk_count: number;
   last_embedded_at: string;
+}
+
+export interface NotebookEntry {
+  id: string;
+  title: string;
+  content: string;
+  url: string | null;
+  tags: string[];
+  pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotebookRow extends Omit<NotebookEntry, "tags"> {
+  tags: string;
 }
 
 export interface EmbeddingSearchResult {

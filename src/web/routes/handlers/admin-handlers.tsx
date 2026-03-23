@@ -32,6 +32,7 @@ export function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">set [company] to [stage]</span> — set journey stage</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">set [contact] to [level]</span> — set fluency level</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">snapshot [company]</span> — create maturity snapshot</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/notebook</span> — personal knowledge notebook</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/search [query]</span> — semantic search across articles, notes, research</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/embed articles</span> — index CMS articles for semantic search</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/embedding stats</span> — show embedding statistics</div>

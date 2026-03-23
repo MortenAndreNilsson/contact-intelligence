@@ -535,6 +535,9 @@ export function regexFallback(msg: string): QueryUnderstanding {
   if (slashStripped === "backup" || slashStripped === "backup database") {
     return { intent: "backup", entities: {}, confidence: 1.0 };
   }
+  if (slashStripped === "notebook" || slashStripped === "notes" || slashStripped === "my notes") {
+    return { intent: "notebook", entities: {}, confidence: 1.0 };
+  }
 
   return { intent: "unknown", entities: {}, confidence: 0 };
 }

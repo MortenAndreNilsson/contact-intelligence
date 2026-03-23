@@ -10,6 +10,7 @@ import analytics from "./routes/analytics.tsx";
 import lists from "./routes/lists.tsx";
 import messages from "./routes/messages.tsx";
 import backup from "./routes/backup.tsx";
+import notebook from "./routes/notebook.tsx";
 
 const app = new Hono();
 
@@ -27,6 +28,7 @@ app.route("/", analytics);
 app.route("/", lists);
 app.route("/", messages);
 app.route("/", backup);
+app.route("/", notebook);
 
 // 404
 app.notFound((c) => {

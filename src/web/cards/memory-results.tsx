@@ -5,6 +5,7 @@ function typeLabel(type: string): string {
     case "article": return "Article";
     case "note": return "Note";
     case "research": return "Research";
+    case "notebook": return "Notebook";
     default: return type;
   }
 }
@@ -14,6 +15,7 @@ function typeColor(type: string): string {
     case "article": return "var(--visma-turquoise)";
     case "note": return "var(--visma-lime)";
     case "research": return "var(--visma-purple, #8b5cf6)";
+    case "notebook": return "var(--visma-yellow)";
     default: return "var(--visma-turquoise)";
   }
 }

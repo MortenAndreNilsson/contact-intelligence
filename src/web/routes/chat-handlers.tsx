@@ -18,7 +18,7 @@ import { handleSync, handleEnrich, handleResearch } from "./handlers/action-hand
 import { handleHelp, handleSyncStatus, handleRefreshSummaries, handleUnknown } from "./handlers/admin-handlers.tsx";
 import { handleJourneyOverview, handleJourneyCompany, handleJourneySet, handleJourneySnapshot, handleFluencySet } from "./handlers/journey-handlers.tsx";
 import { handleSignals } from "./handlers/signal-handlers.tsx";
-import { handleMemorySearch, handleEmbedArticles, handleEmbeddingStats, handleBackup } from "./handlers/memory-handlers.tsx";
+import { handleMemorySearch, handleEmbedArticles, handleEmbeddingStats, handleBackup, handleNotebook } from "./handlers/memory-handlers.tsx";
 
 // Re-export HelpCard for chat.tsx
 export { HelpCard } from "./handlers/admin-handlers.tsx";
@@ -95,6 +95,7 @@ export const handlers: Record<string, IntentHandler> = {
   embed_articles: handleEmbedArticles,
   embedding_stats: handleEmbeddingStats,
   backup: handleBackup,
+  notebook: handleNotebook,
   // admin
   refresh_summaries: handleRefreshSummaries,
   help: handleHelp,

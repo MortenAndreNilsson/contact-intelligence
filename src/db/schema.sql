@@ -204,4 +204,19 @@ CREATE TABLE IF NOT EXISTS embeddings (
 
 CREATE INDEX IF NOT EXISTS idx_embeddings_type ON embeddings(content_type);
 CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_id);
-CREATE INDEX IF NOT EXISTS idx_embedding_sources_type_ref ON embedding_sources(content_type, source_ref)
+CREATE INDEX IF NOT EXISTS idx_embedding_sources_type_ref ON embedding_sources(content_type, source_ref);
+
+-- Notebook (personal knowledge store)
+CREATE TABLE IF NOT EXISTS notebook (
+  id VARCHAR PRIMARY KEY,
+  title VARCHAR NOT NULL,
+  content VARCHAR NOT NULL,
+  url VARCHAR,
+  tags VARCHAR DEFAULT '[]',
+  pinned BOOLEAN DEFAULT false,
+  created_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR),
+  updated_at VARCHAR DEFAULT CAST(current_timestamp AS VARCHAR)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notebook_pinned ON notebook(pinned);
+CREATE INDEX IF NOT EXISTS idx_notebook_updated ON notebook(updated_at)

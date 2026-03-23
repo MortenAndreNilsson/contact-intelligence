@@ -6,7 +6,9 @@
 import type { IntentHandler } from "../chat-handlers.tsx";
 import { searchEmbeddings, embedArticles, getEmbeddingStats } from "../../../services/embeddings.ts";
 import { createLocalBackup, uploadToGCS } from "../../../services/backup.ts";
+import { listNotes } from "../../../services/notebook.ts";
 import { MemoryResultsCard, EmbeddingStatsCard } from "../../cards/memory-results.tsx";
+import { NotebookListCard } from "../../cards/notebook-card.tsx";
 
 export const handleMemorySearch: IntentHandler = async (entities) => {
   const query = entities.name || "";
@@ -72,6 +74,14 @@ export const handleEmbeddingStats: IntentHandler = async () => {
   return {
     html: <EmbeddingStatsCard stats={stats} />,
     summary: `Embedding stats: ${stats.totalChunks} chunks across ${stats.totalSources} sources`,
+  };
+};
+
+export const handleNotebook: IntentHandler = async () => {
+  const notes = await listNotes();
+  return {
+    html: <NotebookListCard notes={notes} />,
+    summary: `Notebook: ${notes.length} notes`,
   };
 };
 
