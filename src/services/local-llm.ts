@@ -167,6 +167,7 @@ function subClassifyAdmin(msg: string): string {
   if (/\b(sync status|sync log|when.* last sync|last sync)\b/.test(lower)) return "sync_status";
   if (/\b(backup|back up|export database)\b/.test(lower)) return "backup";
   if (/\b(embed articles|index articles|build embeddings|reindex)\b/.test(lower)) return "embed_articles";
+  if (/\b(embed notebooks|index notebooks)\b/.test(lower)) return "embed_notebooks";
   if (/\b(embedding stats|memory stats|how many embeddings)\b/.test(lower)) return "embedding_stats";
   return "help";
 }
@@ -528,6 +529,9 @@ export function regexFallback(msg: string): QueryUnderstanding {
   }
   if (slashStripped === "embed articles" || slashStripped === "index articles") {
     return { intent: "embed_articles", entities: {}, confidence: 1.0 };
+  }
+  if (slashStripped === "embed notebooks" || slashStripped === "index notebooks") {
+    return { intent: "embed_notebooks", entities: {}, confidence: 1.0 };
   }
   if (slashStripped === "embedding stats" || slashStripped === "memory stats") {
     return { intent: "embedding_stats", entities: {}, confidence: 1.0 };

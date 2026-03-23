@@ -590,6 +590,7 @@ export function Layout({ children, title }: { children: Child; title?: string })
                 { cmd: '/notebook', desc: 'Personal knowledge notebook' },
                 { cmd: '/search ', desc: 'Semantic search across articles, notes, research', hasArg: true },
                 { cmd: '/embed articles', desc: 'Index CMS articles for semantic search' },
+                { cmd: '/embed notebooks', desc: 'Index notebook entries for semantic search' },
                 { cmd: '/embedding stats', desc: 'Show embedding statistics' },
                 { cmd: '/backup', desc: 'Backup database locally + GCS' },
                 { cmd: '/briefing ', desc: 'Generate CRM briefing', hasArg: true },

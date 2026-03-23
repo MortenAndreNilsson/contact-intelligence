@@ -35,6 +35,7 @@ export function HelpCard() {
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/notebook</span> — personal knowledge notebook</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/search [query]</span> — semantic search across articles, notes, research</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/embed articles</span> — index CMS articles for semantic search</div>
+        <div><span class="font-mono" style="color: var(--visma-turquoise)">/embed notebooks</span> — index notebook entries for semantic search</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/embedding stats</span> — show embedding statistics</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/backup</span> — backup database locally + GCS</div>
         <div><span class="font-mono" style="color: var(--visma-turquoise)">/refresh-summaries</span> — refresh all cached summaries via LLM</div>

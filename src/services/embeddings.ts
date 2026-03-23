@@ -231,32 +231,55 @@ export async function getEmbeddingStats(): Promise<{ totalSources: number; total
 
 // --- Article embedding (batch) ---
 
-const CMS_URL = "https://et-cms-9775734614.europe-north1.run.app";
+const GCS_BUCKET = "et-cms-content-prod-etai-cm";
 
-async function getCmsToken(): Promise<string> {
-  const proc = Bun.spawn(["gcloud.cmd", "auth", "print-identity-token"], {
+async function getGcsToken(): Promise<string> {
+  const proc = Bun.spawn(["gcloud.cmd", "auth", "print-access-token"], {
     stdout: "pipe",
     stderr: "pipe",
   });
   const text = await new Response(proc.stdout).text();
-  if (!text.trim()) throw new Error("Failed to get identity token");
+  if (!text.trim()) throw new Error("Failed to get access token");
   return text.trim();
 }
 
+/** Fetch article markdown from GCS. Tries published/{section}/{slug}.md and {section}/{slug}.md. */
 async function fetchArticleContent(section: string, slug: string, token: string): Promise<{ title: string; content: string } | null> {
-  try {
-    const res = await fetch(`${CMS_URL}/api/content/${section}/${slug}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const content = data?.content || data?.body || data?.markdown || "";
-    const title = data?.title || data?.metadata?.title || slug;
-    if (!content || content.length < 50) return null;
-    return { title, content };
-  } catch {
-    return null;
+  const paths = [
+    `published/${section}/${slug}.md`,
+    `${section}/${slug}.md`,
+  ];
+
+  for (const path of paths) {
+    try {
+      const url = `https://storage.googleapis.com/storage/v1/b/${GCS_BUCKET}/o/${encodeURIComponent(path)}?alt=media`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) continue;
+
+      const markdown = await res.text();
+      if (!markdown || markdown.length < 50) continue;
+
+      // Extract title from frontmatter or first heading
+      let title = slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const titleMatch = markdown.match(/^title:\s*["']?(.+?)["']?\s*$/m);
+      if (titleMatch) title = titleMatch[1]!;
+      else {
+        const h1Match = markdown.match(/^#\s+(.+)$/m);
+        if (h1Match) title = h1Match[1]!;
+      }
+
+      // Strip frontmatter for embedding
+      const content = markdown.replace(/^---[\s\S]*?---\n*/m, "").trim();
+      if (content.length < 50) continue;
+
+      return { title, content };
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 /**
@@ -266,13 +289,15 @@ async function fetchArticleContent(section: string, slug: string, token: string)
  */
 export async function embedArticles(): Promise<{ processed: number; embedded: number; skipped: number; errors: number }> {
   const articles = await queryAll<{ section: string; slug: string; contentTitle: string }>(
-    `SELECT DISTINCT section, slug, contentTitle
+    `SELECT DISTINCT section, slug, MAX(contentTitle) as contentTitle
      FROM cms_events
-     WHERE slug IS NOT NULL AND section IS NOT NULL AND eventType = 'page_view'
+     WHERE slug IS NOT NULL AND section IS NOT NULL
+       AND slug != '' AND section != ''
+     GROUP BY section, slug
      ORDER BY section, slug`
   );
 
-  const token = await getCmsToken();
+  const token = await getGcsToken();
   let embedded = 0;
   let skipped = 0;
   let errors = 0;
@@ -304,4 +329,42 @@ export async function embedArticles(): Promise<{ processed: number; embedded: nu
   }
 
   return { processed: articles.length, embedded, skipped, errors };
+}
+
+/**
+ * Embed all notebook entries. Skips unchanged (via content hash).
+ */
+export async function embedNotebooks(): Promise<{ processed: number; embedded: number; skipped: number; errors: number }> {
+  const { queryAll: q } = await import("../db/client.ts");
+  const notes = await q<{ id: string; title: string; content: string; url: string | null; tags: string }>(
+    `SELECT id, title, content, url, tags FROM notebook ORDER BY updated_at DESC`
+  );
+
+  let embedded = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  for (const note of notes) {
+    try {
+      const textToEmbed = `${note.title}\n\n${note.content}${note.url ? `\n\nSource: ${note.url}` : ""}`;
+      const didEmbed = await embedContent("notebook", `notebook:${note.id}`, textToEmbed, {
+        notebook_id: note.id,
+        title: note.title,
+        url: note.url,
+        tags: JSON.parse(note.tags || "[]"),
+      });
+
+      if (didEmbed) {
+        embedded++;
+        console.log(`  Embedded notebook: ${note.title}`);
+      } else {
+        skipped++;
+      }
+    } catch (err: any) {
+      console.warn(`  Error embedding notebook ${note.id}:`, err.message);
+      errors++;
+    }
+  }
+
+  return { processed: notes.length, embedded, skipped, errors };
 }
