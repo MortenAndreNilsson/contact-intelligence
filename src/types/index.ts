@@ -307,6 +307,7 @@ export interface CompanyEngagement {
   article_reads: number;
   page_views: number;
   survey_completions: number;
+  courses_completed: number;
   engagement_score: number;
   activity_last_30d: number;
   trend: "rising" | "stable" | "cooling";

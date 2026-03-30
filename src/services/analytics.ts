@@ -168,6 +168,7 @@ export async function getEngagementScores(limit = 20, days: number | null = null
     article_reads: number;
     page_views: number;
     survey_completions: number;
+    courses_completed: number;
     activity_last_30d: number;
     activity_prev_30d: number;
   }>(
@@ -177,6 +178,7 @@ export async function getEngagementScores(limit = 20, days: number | null = null
        COUNT(CASE WHEN a.activity_type = 'article_view' THEN 1 END) AS article_reads,
        COUNT(CASE WHEN a.activity_type = 'page_view' THEN 1 END) AS page_views,
        COUNT(CASE WHEN a.activity_type = 'survey_completed' THEN 1 END) AS survey_completions,
+       COUNT(CASE WHEN a.activity_type = 'course_completed' THEN 1 END) AS courses_completed,
        COUNT(CASE WHEN a.occurred_at >= CAST(current_timestamp - INTERVAL '30 days' AS VARCHAR) THEN 1 END) AS activity_last_30d,
        COUNT(CASE WHEN a.occurred_at >= CAST(current_timestamp - INTERVAL '60 days' AS VARCHAR)
                    AND a.occurred_at < CAST(current_timestamp - INTERVAL '30 days' AS VARCHAR) THEN 1 END) AS activity_prev_30d
@@ -188,13 +190,14 @@ export async function getEngagementScores(limit = 20, days: number | null = null
      HAVING COUNT(*) > 0
      ORDER BY (COUNT(CASE WHEN a.activity_type = 'survey_completed' THEN 1 END) * 5
               + COUNT(CASE WHEN a.activity_type = 'article_view' THEN 1 END) * 3
-              + COUNT(CASE WHEN a.activity_type = 'page_view' THEN 1 END) * 1) DESC
+              + COUNT(CASE WHEN a.activity_type = 'page_view' THEN 1 END) * 1
+              + COUNT(CASE WHEN a.activity_type = 'course_completed' THEN 1 END) * 4) DESC
      LIMIT $limit`,
     { $limit: limit }
   );
 
   return rows.map((r) => {
-    const engagement_score = r.survey_completions * 5 + r.article_reads * 3 + r.page_views * 1;
+    const engagement_score = r.survey_completions * 5 + r.article_reads * 3 + r.page_views * 1 + r.courses_completed * 4;
     let trend: "rising" | "stable" | "cooling" = "stable";
     if (r.activity_prev_30d > 0) {
       const change = (r.activity_last_30d - r.activity_prev_30d) / r.activity_prev_30d;
@@ -209,6 +212,7 @@ export async function getEngagementScores(limit = 20, days: number | null = null
       article_reads: r.article_reads,
       page_views: r.page_views,
       survey_completions: r.survey_completions,
+      courses_completed: r.courses_completed,
       engagement_score,
       activity_last_30d: r.activity_last_30d,
       trend,
