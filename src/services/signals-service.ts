@@ -21,6 +21,7 @@ export async function detectSignals(): Promise<Signal[]> {
     detectContentBinge,
     detectCoolingOff,
     detectNewPerson,
+    detectCourseCompletion,
   ];
 
   for (const detect of detectors) {
@@ -223,6 +224,44 @@ async function detectNewPerson(): Promise<Signal[]> {
     dismissed: false,
     created_at: new Date().toISOString(),
   }));
+}
+
+async function detectCourseCompletion(): Promise<Signal[]> {
+  const rows = await queryAll<{
+    activity_id: string;
+    company_id: string;
+    company_name: string;
+    contact_name: string | null;
+    contact_email: string;
+    title: string;
+  }>(
+    `SELECT a.id AS activity_id, a.company_id, comp.name AS company_name,
+            ct.name AS contact_name, ct.email AS contact_email, a.title
+     FROM activities a
+     JOIN companies comp ON a.company_id = comp.id
+     LEFT JOIN contacts ct ON a.contact_id = ct.id
+     WHERE a.activity_type = 'course_completed'
+       AND a.company_id IS NOT NULL
+       AND a.id NOT IN (
+         SELECT detail FROM signals WHERE signal_type = 'course_completed' AND detail IS NOT NULL
+       )
+     ORDER BY a.occurred_at DESC`
+  );
+
+  return rows.map((r) => {
+    const who = r.contact_name || r.contact_email;
+    return {
+      id: generateId(),
+      signal_type: "course_completed" as SignalType,
+      company_id: r.company_id,
+      company_name: r.company_name,
+      title: `${who} completed "${r.title}" at ${r.company_name}`,
+      detail: r.activity_id,
+      detected_at: new Date().toISOString(),
+      dismissed: false,
+      created_at: new Date().toISOString(),
+    };
+  });
 }
 
 // --- Query + dismiss ---

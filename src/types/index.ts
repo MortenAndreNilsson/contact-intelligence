@@ -416,7 +416,7 @@ export interface FluencyDistribution {
 
 // --- G7: Engagement Signals ---
 
-export type SignalType = "new_survey" | "score_change" | "content_binge" | "cooling_off" | "new_person";
+export type SignalType = "new_survey" | "score_change" | "content_binge" | "cooling_off" | "new_person" | "course_completed";
 
 export interface Signal {
   id: string;
