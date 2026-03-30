@@ -219,4 +219,25 @@ CREATE TABLE IF NOT EXISTS notebook (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notebook_pinned ON notebook(pinned);
-CREATE INDEX IF NOT EXISTS idx_notebook_updated ON notebook(updated_at)
+CREATE INDEX IF NOT EXISTS idx_notebook_updated ON notebook(updated_at);
+
+-- Course Enrollments (synced from ET-CMS Course Studio via Firestore)
+CREATE TABLE IF NOT EXISTS course_enrollments (
+  _id VARCHAR PRIMARY KEY,
+  courseId VARCHAR NOT NULL,
+  courseSlug VARCHAR,
+  courseTitle VARCHAR,
+  email VARCHAR NOT NULL,
+  totalSteps INTEGER,
+  completedSteps INTEGER DEFAULT 0,
+  quizScores VARCHAR,
+  startedAt VARCHAR,
+  lastActivityAt VARCHAR,
+  completedAt VARCHAR,
+  verificationId VARCHAR,
+  source VARCHAR DEFAULT 'et-cms'
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_enrollments_email ON course_enrollments(email);
+CREATE INDEX IF NOT EXISTS idx_course_enrollments_courseId ON course_enrollments(courseId);
+CREATE INDEX IF NOT EXISTS idx_course_enrollments_courseSlug ON course_enrollments(courseSlug);
