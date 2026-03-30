@@ -6,6 +6,7 @@
  * 2. Creates contacts from unique email addresses
  * 3. Creates activities from CMS events (article_view, page_view)
  * 4. Creates activities from survey responses (survey_completed)
+ * 5. Creates activities from course enrollments (course_enrolled, course_completed)
  */
 
 import { queryAll, queryOne, run, generateId } from "../db/client.ts";
@@ -25,6 +26,8 @@ async function materializeCompanies(): Promise<number> {
       SELECT split_part(userEmail, '@', 2) AS domain FROM cms_events WHERE userEmail IS NOT NULL ${domainBlockFilter("userEmail")}
       UNION
       SELECT split_part(email, '@', 2) AS domain FROM survey_responses WHERE email IS NOT NULL ${domainBlockFilter("email")}
+      UNION
+      SELECT split_part(email, '@', 2) AS domain FROM course_enrollments WHERE email IS NOT NULL ${domainBlockFilter("email")}
     )
     WHERE domain IS NOT NULL
       AND domain != ''
@@ -53,6 +56,8 @@ async function materializeContacts(): Promise<number> {
       SELECT userEmail AS email FROM cms_events WHERE userEmail IS NOT NULL ${domainBlockFilter("userEmail")}
       UNION
       SELECT email FROM survey_responses WHERE email IS NOT NULL ${domainBlockFilter("email")}
+      UNION
+      SELECT email FROM course_enrollments WHERE email IS NOT NULL ${domainBlockFilter("email")}
     )
     WHERE email IS NOT NULL
       AND email != ''
@@ -196,6 +201,63 @@ async function materializeSurveyActivities(): Promise<number> {
   return created;
 }
 
+async function materializeCourseActivities(): Promise<number> {
+  const enrollments = await queryAll<{
+    _id: string;
+    email: string | null;
+    courseTitle: string | null;
+    courseSlug: string | null;
+    completedSteps: number;
+    completedAt: string | null;
+    startedAt: string | null;
+    lastActivityAt: string | null;
+  }>(
+    `SELECT e._id, e.email, e.courseTitle, e.courseSlug, e.completedSteps, e.completedAt, e.startedAt, e.lastActivityAt
+     FROM course_enrollments e
+     WHERE e._id NOT IN (
+       SELECT source_ref FROM activities WHERE source = 'course' AND source_ref IS NOT NULL
+     )`
+  );
+
+  let created = 0;
+  for (const enr of enrollments) {
+    const contact = enr.email
+      ? await queryOne<{ id: string; company_id: string | null }>(
+          "SELECT id, company_id FROM contacts WHERE email = $email",
+          { $email: enr.email }
+        )
+      : null;
+
+    const activityType = enr.completedAt ? "course_completed" : "course_enrolled";
+    const title = enr.courseTitle || enr.courseSlug || "Course";
+    const detail = JSON.stringify({
+      slug: enr.courseSlug,
+      completedSteps: enr.completedSteps,
+      completed: !!enr.completedAt,
+    });
+
+    const occurredAt = enr.completedAt || enr.lastActivityAt || enr.startedAt || new Date().toISOString();
+
+    await run(
+      `INSERT INTO activities (id, contact_id, company_id, activity_type, source, source_ref, title, detail, occurred_at)
+       VALUES ($id, $contactId, $companyId, $type, 'course', $sourceRef, $title, $detail, $occurredAt)`,
+      {
+        $id: generateId(),
+        $contactId: contact?.id ?? null,
+        $companyId: contact?.company_id ?? null,
+        $type: activityType,
+        $sourceRef: enr._id,
+        $title: title,
+        $detail: detail,
+        $occurredAt: occurredAt,
+      }
+    );
+    created++;
+  }
+
+  return created;
+}
+
 /**
  * Repair activity company_id to match their contact's current company.
  * Fixes the case where materialize created activities under a domain-based company
@@ -229,6 +291,7 @@ export interface MaterializeResult {
   contacts: number;
   cmsActivities: number;
   surveyActivities: number;
+  courseActivities: number;
   activitiesRepaired: number;
   journeyUpdated: number;
   snapshotsCreated: number;
@@ -240,6 +303,7 @@ export async function materialize(): Promise<MaterializeResult> {
   const contacts = await materializeContacts();
   const cmsActivities = await materializeCmsActivities();
   const surveyActivities = await materializeSurveyActivities();
+  const courseActivities = await materializeCourseActivities();
   const activitiesRepaired = await repairActivityCompanies();
 
   // G6: Recompute journey stages for all non-override companies
@@ -275,7 +339,7 @@ export async function materialize(): Promise<MaterializeResult> {
     console.warn("Signal detection error:", err.message);
   }
 
-  const total = companies + contacts + cmsActivities + surveyActivities;
+  const total = companies + contacts + cmsActivities + surveyActivities + courseActivities;
 
   // Log sync
   await run(
@@ -284,5 +348,5 @@ export async function materialize(): Promise<MaterializeResult> {
     { $id: generateId(), $processed: total, $created: total }
   );
 
-  return { companies, contacts, cmsActivities, surveyActivities, activitiesRepaired, journeyUpdated, snapshotsCreated, signalsDetected };
+  return { companies, contacts, cmsActivities, surveyActivities, courseActivities, activitiesRepaired, journeyUpdated, snapshotsCreated, signalsDetected };
 }
