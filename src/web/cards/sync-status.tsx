@@ -12,6 +12,7 @@ interface SyncLogEntry {
 interface SyncCounts {
   cms_events: number;
   survey_responses: number;
+  course_enrollments: number;
 }
 
 function formatDate(ts: string | null): string {
@@ -40,6 +41,7 @@ export function SyncStatusCard({
 }) {
   const eventLog = logs.find((l) => l.source === "cms_events");
   const surveyLog = logs.find((l) => l.source === "survey_responses");
+  const courseLog = logs.find((l) => l.source === "course_enrollments");
   const materializeLog = logs.find((l) => l.source === "materialize");
   const enrichLog = logs.find((l) => l.source === "people_enrichment");
 
@@ -49,7 +51,7 @@ export function SyncStatusCard({
         <div class="card-label mb-xs">Data Sync</div>
         <div class="section-title">Sync Status</div>
 
-        <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr)">
+        <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr)">
           <div class="stat-box">
             <div class="stat-value" style="font-size: 1.5rem">{counts.cms_events}</div>
             <div class="stat-label">CMS Events</div>
@@ -59,8 +61,12 @@ export function SyncStatusCard({
             <div class="stat-label">Survey Responses</div>
           </div>
           <div class="stat-box">
+            <div class="stat-value" style="font-size: 1.5rem">{counts.course_enrollments}</div>
+            <div class="stat-label">Course Enrollments</div>
+          </div>
+          <div class="stat-box">
             <div class="stat-value" style="font-size: 1.5rem; color: var(--visma-turquoise)">
-              {counts.cms_events + counts.survey_responses}
+              {counts.cms_events + counts.survey_responses + counts.course_enrollments}
             </div>
             <div class="stat-label">Total Raw Records</div>
           </div>
@@ -80,7 +86,7 @@ export function SyncStatusCard({
           <span class="btn-label">Sync All</span>
           <span class="btn-loading"><span class="spinner" style="margin-right: 0.4rem"></span> Running pipeline...</span>
         </button>
-        <div class="text-xs text-muted" style="margin-top: 0.5rem">Events → Surveys → Materialize → Enrich</div>
+        <div class="text-xs text-muted" style="margin-top: 0.5rem">Events → Surveys → Courses → Materialize → Enrich</div>
       </div>
 
       {/* Sync Sources */}
@@ -130,6 +136,31 @@ export function SyncStatusCard({
               class="chat-submit"
               style="padding: 0.4rem 0.8rem; font-size: 0.75rem"
               hx-post="/sync/surveys"
+              hx-target="#canvas"
+              hx-swap="innerHTML"
+              hx-disabled-elt="this"
+            >
+              <span class="btn-label">Sync</span>
+              <span class="btn-loading"><span class="spinner"></span></span>
+            </button>
+          </div>
+        </div>
+
+        {/* Course Enrollments */}
+        <div class="table-row">
+          <div class="flex-1">
+            <div style="font-weight: 600">Course Enrollments</div>
+            <div class="text-xs text-muted">
+              Last sync: {formatDate(courseLog?.last_sync_at ?? null)}
+              {courseLog ? ` · ${courseLog.records_created} created, ${courseLog.records_skipped} skipped` : ""}
+            </div>
+          </div>
+          <div class="flex gap-xs items-center">
+            {courseLog && <StatusBadge status={courseLog.status} />}
+            <button
+              class="chat-submit"
+              style="padding: 0.4rem 0.8rem; font-size: 0.75rem"
+              hx-post="/sync/courses"
               hx-target="#canvas"
               hx-swap="innerHTML"
               hx-disabled-elt="this"

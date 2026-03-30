@@ -6,6 +6,7 @@ import { queryAll, queryOne, run, generateId } from "../../db/client.ts";
 import { syncEvents } from "../../services/sync-events.ts";
 import { syncAllSurveys } from "../../services/sync-surveys.ts";
 import type { DualSyncResult } from "../../services/sync-surveys.ts";
+import { syncCourseEnrollments } from "../../services/sync-courses.ts";
 import { materialize } from "../../services/materialize.ts";
 import { enrichContacts } from "../../services/enrich-contacts.ts";
 import { getCompany, updateCompany } from "../../services/companies.ts";
@@ -38,12 +39,14 @@ async function getSyncData() {
 
   const evtCount = await queryOne<{ cnt: number }>("SELECT COUNT(*) AS cnt FROM cms_events");
   const survCount = await queryOne<{ cnt: number }>("SELECT COUNT(*) AS cnt FROM survey_responses");
+  const courseCount = await queryOne<{ cnt: number }>("SELECT COUNT(*) AS cnt FROM course_enrollments");
 
   return {
     logs,
     counts: {
       cms_events: evtCount?.cnt ?? 0,
       survey_responses: survCount?.cnt ?? 0,
+      course_enrollments: courseCount?.cnt ?? 0,
     },
   };
 }
@@ -67,6 +70,7 @@ app.post("/sync/all", async (c) => {
   const steps = [
     { name: "cms_events", label: "CMS Events", fn: syncEvents },
     { name: "survey_responses", label: "Surveys", fn: syncAllSurveys },
+    { name: "course_enrollments", label: "Courses", fn: syncCourseEnrollments },
     { name: "materialize", label: "Materialize", fn: materialize },
     { name: "people_enrichment", label: "Enrich", fn: enrichContacts },
   ];
@@ -175,6 +179,40 @@ app.post("/sync/surveys", async (c) => {
     return c.html(
       <div>
         <div class="card"><div class="text-sm" style="color: var(--visma-coral)">Survey sync failed: {err.message}</div></div>
+        {syncStatus}
+      </div>
+    );
+  }
+});
+
+// POST /sync/courses — trigger course enrollment sync (in-process)
+app.post("/sync/courses", async (c) => {
+  try {
+    const result = await syncCourseEnrollments();
+    console.log(`sync-courses: ${result.processed} processed, ${result.created} new, ${result.updated} updated, ${result.skipped} skipped`);
+    const syncStatus = await renderSyncStatus();
+    return c.html(
+      <div>
+        <div class="card">
+          <div class="card-label mb-xs" style="color: var(--visma-turquoise)">Course Sync Complete</div>
+          <div class="text-sm text-secondary">
+            {result.processed} processed, {result.created} new, {result.updated} updated, {result.skipped} skipped
+          </div>
+        </div>
+        {syncStatus}
+      </div>
+    );
+  } catch (err: any) {
+    console.error("sync-courses failed:", err.message);
+    await run(
+      `INSERT INTO sync_log (id, source, last_sync_at, records_processed, status, error_message)
+       VALUES ($id, 'course_enrollments', CAST(current_timestamp AS VARCHAR), 0, 'error', $err)`,
+      { $id: generateId(), $err: err.message }
+    );
+    const syncStatus = await renderSyncStatus();
+    return c.html(
+      <div>
+        <div class="card"><div class="text-sm" style="color: var(--visma-coral)">Course sync failed: {err.message}</div></div>
         {syncStatus}
       </div>
     );
