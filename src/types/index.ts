@@ -313,6 +313,23 @@ export interface CompanyEngagement {
   trend: "rising" | "stable" | "cooling";
 }
 
+// ========== Courses ==========
+
+export interface CourseOverviewEntry {
+  slug: string;
+  title: string | null;
+  enrollment_count: number;
+  completion_count: number;
+  latest_activity: string | null;
+}
+
+export interface CourseOverviewData {
+  courses: CourseOverviewEntry[];
+  totalEnrollments: number;
+  totalCompletions: number;
+  completionRate: number;
+}
+
 // ========== Messages ==========
 
 export type MessageChannel = "email" | "slack" | "linkedin";

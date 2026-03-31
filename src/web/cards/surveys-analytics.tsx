@@ -89,12 +89,12 @@ export function SurveysCard({ data, surveys, period = "all" }: { data: SurveyOve
                       <span class="text-xs text-muted">{r.completion_count} completion{r.completion_count !== 1 ? "s" : ""}</span>
                     </div>
                     <div class="score-bar mt-sm" style="max-width: 160px">
-                      <div class="score-bar-fill" style={`width: ${Math.min(r.avg_score / 5 * 100, 100)}%`}></div>
+                      <div class="score-bar-fill" style={`width: ${r.avg_score != null ? Math.min(r.avg_score / 5 * 100, 100) : 0}%`}></div>
                     </div>
                   </div>
                   <div style="text-align: right">
                     <div class="font-mono" style="font-size: 1.25rem; font-weight: 700; color: var(--visma-turquoise)">
-                      {r.avg_score.toFixed(1)}
+                      {r.avg_score != null ? r.avg_score.toFixed(1) : "—"}
                     </div>
                     <div class="text-xs text-muted">avg score</div>
                   </div>

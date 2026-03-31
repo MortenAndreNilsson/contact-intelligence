@@ -9,6 +9,8 @@ import type {
   SurveyDetailData,
   QuestionDistribution,
   CompanyEngagement,
+  CourseOverviewEntry,
+  CourseOverviewData,
 } from "../types/index.ts";
 
 /** Build a WHERE clause fragment for date filtering. Returns empty string for "all". */
@@ -486,4 +488,27 @@ export async function getSurveyDetail(slug: string, days: number | null = null):
     question_distributions: questionDistributions,
     recent_completions: recentCompletions,
   };
+}
+
+/** Course enrollment overview — per-course stats */
+export async function getCourseOverview(days: number | null = null): Promise<CourseOverviewData> {
+  const courses = await queryAll<CourseOverviewEntry>(
+    `SELECT
+       ce.courseSlug AS slug,
+       ce.courseTitle AS title,
+       COUNT(*) AS enrollment_count,
+       COUNT(CASE WHEN ce.completedAt IS NOT NULL THEN 1 END) AS completion_count,
+       MAX(ce.lastActivityAt) AS latest_activity
+     FROM course_enrollments ce
+     WHERE ce.courseSlug IS NOT NULL
+       ${days !== null ? `AND ce.startedAt >= CAST(current_timestamp - INTERVAL '${ALLOWED_DAYS.has(days) ? days : 30} days' AS VARCHAR)` : ""}
+     GROUP BY ce.courseSlug, ce.courseTitle
+     ORDER BY enrollment_count DESC`
+  );
+
+  const totalEnrollments = courses.reduce((s, c) => s + c.enrollment_count, 0);
+  const totalCompletions = courses.reduce((s, c) => s + c.completion_count, 0);
+  const completionRate = totalEnrollments > 0 ? Math.round((totalCompletions / totalEnrollments) * 100) : 0;
+
+  return { courses, totalEnrollments, totalCompletions, completionRate };
 }

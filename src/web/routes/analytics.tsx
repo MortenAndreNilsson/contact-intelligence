@@ -8,9 +8,11 @@ import { EngagementCard } from "../cards/engagement-card.tsx";
 import { SurveyDimensionsCard } from "../cards/survey-dimensions.tsx";
 import { CompanyTimelineCard } from "../cards/company-timeline.tsx";
 import { ArticleTrendCard } from "../cards/article-trend.tsx";
+import { CoursesCard } from "../cards/courses-analytics.tsx";
 import {
   getTopArticles, getTopPages, getSurveyAnalytics, getSurveyIndex, getSurveyDetail,
   getEngagementScores, getSurveyDimensions, getCompanyTimeline, getArticleTrend,
+  getCourseOverview,
 } from "../../services/analytics.ts";
 import type { Period } from "../cards/helpers.tsx";
 import { periodToDays } from "../cards/helpers.tsx";
@@ -49,6 +51,15 @@ app.get("/analytics/surveys", async (c) => {
     getSurveyIndex(days),
   ]);
   const content = <SurveysCard data={data} surveys={surveys} period={period} />;
+  if (isHtmx) return c.html(content);
+  return c.html(<Layout>{content}</Layout>);
+});
+
+app.get("/analytics/courses", async (c) => {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  const period = parsePeriod(c.req.query("period"));
+  const data = await getCourseOverview(periodToDays(period));
+  const content = <CoursesCard data={data} period={period} />;
   if (isHtmx) return c.html(content);
   return c.html(<Layout>{content}</Layout>);
 });
