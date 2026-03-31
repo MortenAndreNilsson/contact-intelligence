@@ -11,6 +11,7 @@ import { enrichContacts } from "../../../services/enrich-contacts.ts";
 import { researchCompany } from "../../../services/company-research.ts";
 import { syncEvents } from "../../../services/sync-events.ts";
 import { syncAllSurveys } from "../../../services/sync-surveys.ts";
+import { syncCourseEnrollments } from "../../../services/sync-courses.ts";
 import { materialize } from "../../../services/materialize.ts";
 import {
   resolveCompany,
@@ -37,8 +38,15 @@ export const handleSync: IntentHandler = async () => {
   }
 
   try {
+    const courseResult = await syncCourseEnrollments();
+    steps.push({ label: "Courses", ok: true, summary: `${courseResult.created} new, ${courseResult.updated} updated, ${courseResult.skipped} skipped` });
+  } catch (err: any) {
+    steps.push({ label: "Courses", ok: false, summary: err.message });
+  }
+
+  try {
     const matResult = await materialize();
-    steps.push({ label: "Materialize", ok: true, summary: `+${matResult.companies} companies, +${matResult.contacts} contacts, +${matResult.cmsActivities + matResult.surveyActivities} activities, ${matResult.journeyUpdated} stages, ${matResult.snapshotsCreated} snapshots, ${matResult.signalsDetected} signals` });
+    steps.push({ label: "Materialize", ok: true, summary: `+${matResult.companies} companies, +${matResult.contacts} contacts, +${matResult.cmsActivities + matResult.surveyActivities + matResult.courseActivities} activities, ${matResult.journeyUpdated} stages, ${matResult.snapshotsCreated} snapshots, ${matResult.signalsDetected} signals` });
   } catch (err: any) {
     steps.push({ label: "Materialize", ok: false, summary: err.message });
   }

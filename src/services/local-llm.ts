@@ -158,7 +158,7 @@ function subClassifyAction(msg: string): string {
   if (/\b(set.*to\s+(exploring|assessing|training|scaling|self.sustaining))\b/.test(lower)) return "journey_set";
   if (/\b(set.*to\s+(explorer|practitioner|integrator|architect|master))\b/.test(lower)) return "fluency_set";
   if (/\b(snapshot|take snapshot|create snapshot)\b/.test(lower)) return "journey_snapshot";
-  if (/\b(sync|synchronize|refresh|pull data|update data|fetch data)\b/.test(lower)) return "sync";
+  if (/\b(synch?|synchronize|refresh|pull data|update data|fetch data)\b/.test(lower)) return "sync";
   return "sync"; // safe default
 }
 
@@ -377,7 +377,7 @@ export function regexFallback(msg: string): QueryUnderstanding {
   }
 
   // Sync action
-  if (/\b(sync|synchronize|refresh data|pull data|update data|fetch data|run.* sync|full sync)\b/.test(slashStripped)) {
+  if (/\b(synch?|synchronize|refresh data|pull data|update data|fetch data|run.* synch?|full synch?)\b/.test(slashStripped)) {
     return { intent: "sync", entities: {}, confidence: 0.9 };
   }
 
@@ -510,8 +510,8 @@ export function regexFallback(msg: string): QueryUnderstanding {
   if (slashStripped === "engagement") return { intent: "engagement", entities: {}, confidence: 1.0 };
   if (slashStripped === "lists") return { intent: "lists", entities: {}, confidence: 1.0 };
   if (slashStripped === "enrich") return { intent: "enrich", entities: {}, confidence: 1.0 };
-  if (slashStripped === "sync") return { intent: "sync", entities: {}, confidence: 1.0 };
-  if (slashStripped === "sync status") return { intent: "sync_status", entities: {}, confidence: 1.0 };
+  if (slashStripped === "sync" || slashStripped === "synch") return { intent: "sync", entities: {}, confidence: 1.0 };
+  if (/^synch? status$/.test(slashStripped)) return { intent: "sync_status", entities: {}, confidence: 1.0 };
   if (slashStripped === "help" || slashStripped === "?") return { intent: "help", entities: {}, confidence: 1.0 };
   if (slashStripped.startsWith("company ")) {
     return { intent: "company", entities: { name: slashStripped.slice(8).trim() }, confidence: 1.0 };
