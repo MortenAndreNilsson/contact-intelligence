@@ -197,7 +197,7 @@ Authorization: Bearer {service-account-token}
 | CPU | 1 vCPU |
 | Min instances | 1 |
 | Max instances | 3 |
-| Timeout | 120s |
+| Timeout | 300s |
 | Cloud SQL | `prod-etai-cm:europe-north1:ci-db` (Unix socket) |
 
 ### Secrets (Secret Manager)
